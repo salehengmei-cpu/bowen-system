@@ -906,7 +906,15 @@ function fillSku(oid,idx,sku){
 // ── Custom products (override master list) ──
 let customProducts = lsGet('bpc_custom_products', null);
 // If customProducts is null, use master PRODUCTS; otherwise use custom list
-function getProducts() { return customProducts !== null ? customProducts : PRODUCTS; }
+// Normalize: inventory uses name_zh/name_en, planner uses desc — handle both
+function getProducts() {
+  const raw = customProducts !== null ? customProducts : PRODUCTS;
+  return raw.map(p => ({
+    ...p,
+    desc: p.desc || p.name_zh || p.name_en || p.sku,
+    name_zh: p.name_zh || p.desc || p.sku,
+  }));
+}
 function saveProducts(list) { customProducts = list; lsSet('bpc_custom_products', list); }
 function resetProducts() { customProducts = null; lsSet('bpc_custom_products', null); }
 
@@ -956,14 +964,16 @@ function renderSettings() {
 function editProduct(i, field, val) {
   const list = JSON.parse(JSON.stringify(getProducts()));
   list[i][field] = val;
+  // keep desc and name_zh in sync so both apps work
+  if (field === 'desc') list[i].name_zh = val;
+  if (field === 'name_zh') list[i].desc = val;
   saveProducts(list);
 }
 function addProduct() {
   const list = JSON.parse(JSON.stringify(getProducts()));
-  list.push({sku:'NEW-SKU', desc:'新產品名稱', l:100, w:10, h:10, wt:5});
+  list.push({sku:'NEW-SKU', desc:'新產品名稱', name_zh:'新產品名稱', name_en:'New Product', l:100, w:10, h:10, wt:5, category:'PATIO COVER PROFILES', unit:'pcs', min_stock:5});
   saveProducts(list);
   renderSettings();
-  // scroll to bottom
   setTimeout(()=>{ const el=document.querySelector('.content div div:last-child'); if(el) el.scrollIntoView({behavior:'smooth'}); },100);
 }
 function deleteProduct(i) {
@@ -1011,7 +1021,7 @@ function parseImportCSV(text) {
     if (!sku || !desc) { skipped++; return; }
     const lv=parseFloat(l), wv=parseFloat(w), hv=parseFloat(h), wtv=parseFloat(wt);
     if (isNaN(lv)||isNaN(wv)||isNaN(hv)) { skipped++; return; }
-    products.push({sku:sku.trim(), desc:desc.trim(), l:lv, w:wv, h:hv, wt:isNaN(wtv)?0:wtv});
+    products.push({sku:sku.trim(), desc:desc.trim(), name_zh:desc.trim(), name_en:desc.trim(), l:lv, w:wv, h:hv, wt:isNaN(wtv)?0:wtv, category:'PATIO COVER PROFILES', unit:'pcs', min_stock:5});
   });
   if (!products.length) { alert('匯入失敗：找不到有效的產品資料。\n請確認格式為：SKU, 名稱, 長, 寬, 高, 重量'); return; }
   if (!confirm(`匯入 ${products.length} 個產品${skipped>0?'（跳過'+skipped+'行）':''}？\n這將取代現有產品列表。`)) return;

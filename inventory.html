@@ -199,7 +199,17 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 
 // ── Custom products override ──
 let customProducts = lsGet('bpc_custom_products', null);
-function getProducts() { return customProducts !== null ? customProducts : PRODUCTS; }
+function getProducts() {
+  const raw = customProducts !== null ? customProducts : PRODUCTS;
+  return raw.map(p => ({
+    ...p,
+    sku: p.sku || p.id || '',
+    name_zh: p.name_zh || p.desc || p.name_en || p.sku,
+    name_en: p.name_en || p.desc || p.name_zh || p.sku,
+    category: p.category || 'PATIO COVER PROFILES',
+    min_stock: p.min_stock != null ? p.min_stock : 5,
+  }));
+}
 function saveProds(list) { customProducts = list; lsSet('bpc_custom_products', list); }
 function resetProds() { customProducts = null; lsSet('bpc_custom_products', null); }
 
