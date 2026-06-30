@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bowen — 庫存管理系統</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--brand:#7B5E3A;--brand-light:#F5EFE6;--brand-mid:#C4A882;--bg:#F7F5F2;--bg2:#fff;--bg3:#EFECE8;--border:#E3DDD3;--border2:#D0C8BC;--text:#2B2520;--text2:#6B6158;--text3:#9C8F84;--green:#16a34a;--green-bg:#dcfce7;--red:#dc2626;--red-bg:#fee2e2;--amber:#d97706;--amber-bg:#fef3c7;--radius:10px;--radius-sm:6px;--shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 12px rgba(0,0,0,.1)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;font-size:14px;color:var(--text);background:var(--bg);min-height:100vh}
+.topnav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--brand);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.nav-logo{font-size:15px;font-weight:700}
+.nav-links{display:flex;gap:4px}
+.nav-link{padding:6px 12px;border-radius:6px;color:rgba(255,255,255,.8);font-size:13px;text-decoration:none}
+.nav-link:hover,.nav-link.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
+.page{max-width:1200px;margin:0 auto;padding:20px}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.sum-label{font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.sum-val{font-size:24px;font-weight:700}
+.sum-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.sum-card.alert .sum-val{color:var(--red)}
+.sum-card.ok .sum-val{color:var(--green)}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar-left{display:flex;gap:8px;flex:1;min-width:0;flex-wrap:wrap}
+.search-box{flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg2);color:var(--text)}
+.search-box:focus{outline:none;border-color:var(--brand-mid)}
+.filter-select{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--bg2);color:var(--text);cursor:pointer}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:13px;font-weight:500}
+.btn:hover{opacity:.88}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{background:var(--bg3)}
+.table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.table-hd{display:grid;grid-template-columns:1.2fr 2.2fr 1fr .8fr .8fr .8fr 1fr;gap:0;padding:8px 16px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);background:var(--bg3)}
+.table-row{display:grid;grid-template-columns:1.2fr 2.2fr 1fr .8fr .8fr .8fr 1fr;gap:0;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center}
+.table-row:last-child{border-bottom:none}
+.table-row:hover{background:var(--bg3)}
+.sku-tag{font-weight:700;color:var(--brand);font-size:12px}
+.cat-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
+.cat-PATIO{background:#e0f2fe;color:#075985}
+.cat-GLASS{background:#f0fdf4;color:#166534}
+.cat-GUTTERS{background:#fef9c3;color:#854d0e}
+.cat-HARDWARE{background:#fce7f3;color:#9d174d}
+.cat-SEALANTS{background:#f3e8ff;color:#6b21a8}
+.stock-ok{color:var(--green)}
+.stock-low{color:var(--amber)}
+.stock-zero{color:var(--red)}
+.stock-badge{display:inline-block;font-size:10px;padding:2px 6px;border-radius:8px}
+.badge-ok{background:var(--green-bg);color:var(--green)}
+.badge-low{background:var(--amber-bg);color:var(--amber)}
+.badge-zero{background:var(--red-bg);color:var(--red)}
+.action-btns{display:flex;gap:4px}
+.act-btn{padding:4px 10px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;font-size:12px;font-weight:500;color:var(--text)}
+.act-btn.in{color:var(--green);border-color:var(--green)}
+.act-btn.in:hover{background:var(--green-bg)}
+.act-btn.out{color:var(--red);border-color:var(--red)}
+.act-btn.out:hover{background:var(--red-bg)}
+.empty-row{padding:32px;text-align:center;color:var(--text3);font-size:13px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:20px}
+.modal-bg.show{display:flex}
+.modal{background:var(--bg2);border-radius:var(--radius);padding:24px;width:100%;max-width:480px;box-shadow:var(--shadow-md);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:12px;color:var(--text2);margin-bottom:5px;display:block}
+.form-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;color:var(--text);background:var(--bg2)}
+.form-input:focus{outline:none;border-color:var(--brand-mid)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.history-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-top:16px;overflow:hidden}
+.history-hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+.hist-hd-row{display:grid;grid-template-columns:.8fr 1.2fr 1.8fr .6fr .7fr .7fr 1.2fr;gap:0;padding:8px 16px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);background:var(--bg3)}
+.hist-row{display:grid;grid-template-columns:.8fr 1.2fr 1.8fr .6fr .7fr .7fr 1.2fr;gap:0;padding:9px 16px;border-bottom:1px solid var(--border);font-size:12px;align-items:center}
+.hist-row:last-child{border-bottom:none}
+.in-tag{color:var(--green);font-weight:700}
+.out-tag{color:var(--red);font-weight:700}
+.tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px;width:fit-content}
+.tab-btn{padding:7px 16px;border-radius:5px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text2);font-weight:500}
+.tab-btn.active{background:var(--brand);color:#fff}
+.sku-dd-wrap{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-height:200px;overflow-y:auto;background:var(--bg2);box-shadow:var(--shadow-md)}
+.sku-dd-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:12px}
+.sku-dd-item:last-child{border-bottom:none}
+.sku-dd-item:hover{background:var(--brand-light)}
+@media(max-width:760px){
+  .summary-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .table-hd{display:none}
+  .table-row{grid-template-columns:1fr;gap:6px;padding:12px 14px}
+  .hist-hd-row{display:none}
+  .hist-row{grid-template-columns:1fr 1fr;font-size:11px}
+  .toolbar-left{flex-direction:column}
+}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="nav-logo">📦 Bowen 業務系統</div>
+  <div class="nav-links">
+    <a class="nav-link" href="index.html">🧮 貨櫃計劃</a>
+    <a class="nav-link active" href="inventory.html">📊 庫存管理</a>
+  </div>
+</nav>
+<div class="page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div>
+      <h1 style="font-size:20px;font-weight:700">庫存管理</h1>
+      <p style="font-size:12px;color:var(--text3);margin-top:2px">Bowen Aluminum — 131個SKU · 5個類別</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-green" onclick="openModal('in')">＋ 入庫 IN</button>
+      <button class="btn btn-red" onclick="openModal('out')">－ 出庫 OUT</button>
+    </div>
+  </div>
+  <div class="summary-grid" id="summary-grid"></div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-inv" onclick="switchTab('inv')">📦 庫存總覽</button>
+    <button class="tab-btn" id="tab-hist" onclick="switchTab('hist')">📋 異動記錄</button>
+  </div>
+  <div id="view-inv">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input class="search-box" id="search-box" placeholder="搜尋 SKU 或產品名稱…" oninput="renderTable()">
+        <select class="filter-select" id="cat-filter" onchange="renderTable()">
+          <option value="">所有類別</option>
+          <option value="PATIO COVER PROFILES">Patio Cover 型材</option>
+          <option value="GLASS">玻璃</option>
+          <option value="GUTTERS & DRAINAGE">排水配件</option>
+          <option value="HARDWARE & FASTENERS">五金螺絲</option>
+          <option value="SEALANTS & ADHESIVES">密封膠</option>
+        </select>
+        <select class="filter-select" id="stock-filter" onchange="renderTable()">
+          <option value="">所有狀態</option>
+          <option value="zero">🔴 缺貨</option>
+          <option value="low">⚠️ 偏低</option>
+          <option value="ok">✅ 正常</option>
+        </select>
+      </div>
+      <button class="btn btn-outline" onclick="exportCSV()">⬇ 匯出CSV</button>
+    </div>
+    <div class="table-wrap">
+      <div class="table-hd"><span>SKU</span><span>產品名稱</span><span>類別</span><span>庫存</span><span>最低量</span><span>狀態</span><span>操作</span></div>
+      <div id="table-body"></div>
+    </div>
+  </div>
+  <div id="view-hist" style="display:none">
+    <div class="history-panel">
+      <div class="history-hd">
+        <span style="font-size:14px;font-weight:600">異動記錄</span>
+        <button class="btn btn-outline" onclick="clearHistory()" style="font-size:12px;padding:5px 10px">清除記錄</button>
+      </div>
+      <div class="hist-hd-row"><span>日期</span><span>時間</span><span>SKU / 產品</span><span>類型</span><span>數量</span><span>庫存後</span><span>備注</span></div>
+      <div id="history-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modal-bg" onclick="closeModalBg(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">＋ 入庫 (IN)</div>
+    <div id="modal-product-info" style="margin-bottom:12px"></div>
+    <div class="form-group">
+      <label class="form-label">選擇產品 SKU</label>
+      <input class="form-input" id="modal-sku-input" placeholder="輸入SKU或中文名稱搜尋…"
+        oninput="filterModalSku(this.value)"
+        onfocus="showModalDd()"
+        onblur="setTimeout(hideModalDd,200)"
+        onclick="showModalDd()">
+      <div id="modal-dd" style="margin-top:4px"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">數量</label>
+        <input class="form-input" id="modal-qty" type="number" min="1" value="1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">日期</label>
+        <input class="form-input" id="modal-date" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">備注 (QB Ref# / 工地 / 說明)</label>
+      <input class="form-input" id="modal-note" placeholder="例如: QB#1234 / 客戶名稱">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-green" id="modal-confirm" onclick="confirmTx()">確認入庫</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PRODUCTS = [{"id": "A03B-24ft", "sku": "A03B-24ft", "base_sku": "A03B", "name_zh": "3合1(無工字梁)黑色 (24ft)", "name_en": "3 in 1 (no I beam) Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "A03B-22ft", "sku": "A03B-22ft", "base_sku": "A03B", "name_zh": "3合1(無工字梁)黑色 (22ft)", "name_en": "3 in 1 (no I beam) Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "A03B-20ft", "sku": "A03B-20ft", "base_sku": "A03B", "name_zh": "3合1(無工字梁)黑色 (20ft)", "name_en": "3 in 1 (no I beam) Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "A03B-18ft", "sku": "A03B-18ft", "base_sku": "A03B", "name_zh": "3合1(無工字梁)黑色 (18ft)", "name_en": "3 in 1 (no I beam) Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "A03W-24ft", "sku": "A03W-24ft", "base_sku": "A03W", "name_zh": "3合1(無工字梁)白色 (24ft)", "name_en": "3 in 1 (no I beam) White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "A03W-22ft", "sku": "A03W-22ft", "base_sku": "A03W", "name_zh": "3合1(無工字梁)白色 (22ft)", "name_en": "3 in 1 (no I beam) White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "A03W-20ft", "sku": "A03W-20ft", "base_sku": "A03W", "name_zh": "3合1(無工字梁)白色 (20ft)", "name_en": "3 in 1 (no I beam) White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "A03W-18ft", "sku": "A03W-18ft", "base_sku": "A03W", "name_zh": "3合1(無工字梁)白色 (18ft)", "name_en": "3 in 1 (no I beam) White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "A01B-24ft", "sku": "A01B-24ft", "base_sku": "A01B", "name_zh": "4吋 4合1黑色 (24ft)", "name_en": "4\" 4 in 1 Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "A01B-22ft", "sku": "A01B-22ft", "base_sku": "A01B", "name_zh": "4吋 4合1黑色 (22ft)", "name_en": "4\" 4 in 1 Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "A01B-20ft", "sku": "A01B-20ft", "base_sku": "A01B", "name_zh": "4吋 4合1黑色 (20ft)", "name_en": "4\" 4 in 1 Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "A01B-18ft", "sku": "A01B-18ft", "base_sku": "A01B", "name_zh": "4吋 4合1黑色 (18ft)", "name_en": "4\" 4 in 1 Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "A01W-24ft", "sku": "A01W-24ft", "base_sku": "A01W", "name_zh": "4吋 4合1白色 (24ft)", "name_en": "4\" 4 in 1 White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "A01W-22ft", "sku": "A01W-22ft", "base_sku": "A01W", "name_zh": "4吋 4合1白色 (22ft)", "name_en": "4\" 4 in 1 White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "A01W-20ft", "sku": "A01W-20ft", "base_sku": "A01W", "name_zh": "4吋 4合1白色 (20ft)", "name_en": "4\" 4 in 1 White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "A01W-18ft", "sku": "A01W-18ft", "base_sku": "A01W", "name_zh": "4吋 4合1白色 (18ft)", "name_en": "4\" 4 in 1 White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "A02B-24ft", "sku": "A02B-24ft", "base_sku": "A02B", "name_zh": "6吋 4合1黑色 (24ft)", "name_en": "6\" 4 in 1 Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "A02B-22ft", "sku": "A02B-22ft", "base_sku": "A02B", "name_zh": "6吋 4合1黑色 (22ft)", "name_en": "6\" 4 in 1 Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "A02B-20ft", "sku": "A02B-20ft", "base_sku": "A02B", "name_zh": "6吋 4合1黑色 (20ft)", "name_en": "6\" 4 in 1 Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "A02B-18ft", "sku": "A02B-18ft", "base_sku": "A02B", "name_zh": "6吋 4合1黑色 (18ft)", "name_en": "6\" 4 in 1 Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "A02W-24ft", "sku": "A02W-24ft", "base_sku": "A02W", "name_zh": "6吋 4合1白色 (24ft)", "name_en": "6\" 4 in 1 White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "A02W-22ft", "sku": "A02W-22ft", "base_sku": "A02W", "name_zh": "6吋 4合1白色 (22ft)", "name_en": "6\" 4 in 1 White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "A02W-20ft", "sku": "A02W-20ft", "base_sku": "A02W", "name_zh": "6吋 4合1白色 (20ft)", "name_en": "6\" 4 in 1 White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "A02W-18ft", "sku": "A02W-18ft", "base_sku": "A02W", "name_zh": "6吋 4合1白色 (18ft)", "name_en": "6\" 4 in 1 White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT01B-24ft", "sku": "PT01B-24ft", "base_sku": "PT01B", "name_zh": "4吋工字梁 黑色 (24ft)", "name_en": "4\" Double I Beam Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT01B-22ft", "sku": "PT01B-22ft", "base_sku": "PT01B", "name_zh": "4吋工字梁 黑色 (22ft)", "name_en": "4\" Double I Beam Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT01B-20ft", "sku": "PT01B-20ft", "base_sku": "PT01B", "name_zh": "4吋工字梁 黑色 (20ft)", "name_en": "4\" Double I Beam Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT01B-18ft", "sku": "PT01B-18ft", "base_sku": "PT01B", "name_zh": "4吋工字梁 黑色 (18ft)", "name_en": "4\" Double I Beam Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT01W-24ft", "sku": "PT01W-24ft", "base_sku": "PT01W", "name_zh": "4吋工字梁 白色 (24ft)", "name_en": "4\" Double I Beam White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT01W-22ft", "sku": "PT01W-22ft", "base_sku": "PT01W", "name_zh": "4吋工字梁 白色 (22ft)", "name_en": "4\" Double I Beam White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT01W-20ft", "sku": "PT01W-20ft", "base_sku": "PT01W", "name_zh": "4吋工字梁 白色 (20ft)", "name_en": "4\" Double I Beam White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT01W-18ft", "sku": "PT01W-18ft", "base_sku": "PT01W", "name_zh": "4吋工字梁 白色 (18ft)", "name_en": "4\" Double I Beam White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT05B-24ft", "sku": "PT05B-24ft", "base_sku": "PT05B", "name_zh": "6吋工字梁 黑色 (24ft)", "name_en": "6\" Double I Beam Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT05B-22ft", "sku": "PT05B-22ft", "base_sku": "PT05B", "name_zh": "6吋工字梁 黑色 (22ft)", "name_en": "6\" Double I Beam Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT05B-20ft", "sku": "PT05B-20ft", "base_sku": "PT05B", "name_zh": "6吋工字梁 黑色 (20ft)", "name_en": "6\" Double I Beam Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT05B-18ft", "sku": "PT05B-18ft", "base_sku": "PT05B", "name_zh": "6吋工字梁 黑色 (18ft)", "name_en": "6\" Double I Beam Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT05W-24ft", "sku": "PT05W-24ft", "base_sku": "PT05W", "name_zh": "6吋工字梁 白色 (24ft)", "name_en": "6\" Double I Beam White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT05W-22ft", "sku": "PT05W-22ft", "base_sku": "PT05W", "name_zh": "6吋工字梁 白色 (22ft)", "name_en": "6\" Double I Beam White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT05W-20ft", "sku": "PT05W-20ft", "base_sku": "PT05W", "name_zh": "6吋工字梁 白色 (20ft)", "name_en": "6\" Double I Beam White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT05W-18ft", "sku": "PT05W-18ft", "base_sku": "PT05W", "name_zh": "6吋工字梁 白色 (18ft)", "name_en": "6\" Double I Beam White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PTW09-B-24ft", "sku": "PTW09-B-24ft", "base_sku": "PTW09-B", "name_zh": "8吋工字梁 黑色 (24ft)", "name_en": "8\" Double I Beam Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PTW09-B-22ft", "sku": "PTW09-B-22ft", "base_sku": "PTW09-B", "name_zh": "8吋工字梁 黑色 (22ft)", "name_en": "8\" Double I Beam Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PTW09-B-20ft", "sku": "PTW09-B-20ft", "base_sku": "PTW09-B", "name_zh": "8吋工字梁 黑色 (20ft)", "name_en": "8\" Double I Beam Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PTW09-B-18ft", "sku": "PTW09-B-18ft", "base_sku": "PTW09-B", "name_zh": "8吋工字梁 黑色 (18ft)", "name_en": "8\" Double I Beam Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PTW09-W-24ft", "sku": "PTW09-W-24ft", "base_sku": "PTW09-W", "name_zh": "8吋工字梁 白色 (24ft)", "name_en": "8\" Double I Beam White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PTW09-W-22ft", "sku": "PTW09-W-22ft", "base_sku": "PTW09-W", "name_zh": "8吋工字梁 白色 (22ft)", "name_en": "8\" Double I Beam White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PTW09-W-20ft", "sku": "PTW09-W-20ft", "base_sku": "PTW09-W", "name_zh": "8吋工字梁 白色 (20ft)", "name_en": "8\" Double I Beam White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PTW09-W-18ft", "sku": "PTW09-W-18ft", "base_sku": "PTW09-W", "name_zh": "8吋工字梁 白色 (18ft)", "name_en": "8\" Double I Beam White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT06B-24ft", "sku": "PT06B-24ft", "base_sku": "PT06B", "name_zh": "黑色側板 (24ft)", "name_en": "Side Plate Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT06B-22ft", "sku": "PT06B-22ft", "base_sku": "PT06B", "name_zh": "黑色側板 (22ft)", "name_en": "Side Plate Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT06B-20ft", "sku": "PT06B-20ft", "base_sku": "PT06B", "name_zh": "黑色側板 (20ft)", "name_en": "Side Plate Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT06B-18ft", "sku": "PT06B-18ft", "base_sku": "PT06B", "name_zh": "黑色側板 (18ft)", "name_en": "Side Plate Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT06W-24ft", "sku": "PT06W-24ft", "base_sku": "PT06W", "name_zh": "白色側板 (24ft)", "name_en": "Side Plate White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT06W-22ft", "sku": "PT06W-22ft", "base_sku": "PT06W", "name_zh": "白色側板 (22ft)", "name_en": "Side Plate White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT06W-20ft", "sku": "PT06W-20ft", "base_sku": "PT06W", "name_zh": "白色側板 (20ft)", "name_en": "Side Plate White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT06W-18ft", "sku": "PT06W-18ft", "base_sku": "PT06W", "name_zh": "白色側板 (18ft)", "name_en": "Side Plate White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT07B-24ft", "sku": "PT07B-24ft", "base_sku": "PT07B", "name_zh": "3吋 柱 黑色 (24ft)", "name_en": "3\" x 3\" Post Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT07B-22ft", "sku": "PT07B-22ft", "base_sku": "PT07B", "name_zh": "3吋 柱 黑色 (22ft)", "name_en": "3\" x 3\" Post Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT07B-20ft", "sku": "PT07B-20ft", "base_sku": "PT07B", "name_zh": "3吋 柱 黑色 (20ft)", "name_en": "3\" x 3\" Post Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT07B-18ft", "sku": "PT07B-18ft", "base_sku": "PT07B", "name_zh": "3吋 柱 黑色 (18ft)", "name_en": "3\" x 3\" Post Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT07W-24ft", "sku": "PT07W-24ft", "base_sku": "PT07W", "name_zh": "3吋 柱 白色 (24ft)", "name_en": "3\" x 3\" Post White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT07W-22ft", "sku": "PT07W-22ft", "base_sku": "PT07W", "name_zh": "3吋 柱 白色 (22ft)", "name_en": "3\" x 3\" Post White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT07W-20ft", "sku": "PT07W-20ft", "base_sku": "PT07W", "name_zh": "3吋 柱 白色 (20ft)", "name_en": "3\" x 3\" Post White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT07W-18ft", "sku": "PT07W-18ft", "base_sku": "PT07W", "name_zh": "3吋 柱 白色 (18ft)", "name_en": "3\" x 3\" Post White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT08B-24ft", "sku": "PT08B-24ft", "base_sku": "PT08B", "name_zh": "T型梁 黑色 (24ft)", "name_en": "T Bar Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT08B-22ft", "sku": "PT08B-22ft", "base_sku": "PT08B", "name_zh": "T型梁 黑色 (22ft)", "name_en": "T Bar Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT08B-20ft", "sku": "PT08B-20ft", "base_sku": "PT08B", "name_zh": "T型梁 黑色 (20ft)", "name_en": "T Bar Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT08B-18ft", "sku": "PT08B-18ft", "base_sku": "PT08B", "name_zh": "T型梁 黑色 (18ft)", "name_en": "T Bar Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "PT08W-24ft", "sku": "PT08W-24ft", "base_sku": "PT08W", "name_zh": "T型梁 白色 (24ft)", "name_en": "T Bar White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "PT08W-22ft", "sku": "PT08W-22ft", "base_sku": "PT08W", "name_zh": "T型梁 白色 (22ft)", "name_en": "T Bar White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "PT08W-20ft", "sku": "PT08W-20ft", "base_sku": "PT08W", "name_zh": "T型梁 白色 (20ft)", "name_en": "T Bar White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "PT08W-18ft", "sku": "PT08W-18ft", "base_sku": "PT08W", "name_zh": "T型梁 白色 (18ft)", "name_en": "T Bar White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "VP-B-24ft", "sku": "VP-B-24ft", "base_sku": "VP-B", "name_zh": "黑色 瓦片 (24ft)", "name_en": "V-Panel Black (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "VP-B-22ft", "sku": "VP-B-22ft", "base_sku": "VP-B", "name_zh": "黑色 瓦片 (22ft)", "name_en": "V-Panel Black (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "VP-B-20ft", "sku": "VP-B-20ft", "base_sku": "VP-B", "name_zh": "黑色 瓦片 (20ft)", "name_en": "V-Panel Black (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "VP-B-18ft", "sku": "VP-B-18ft", "base_sku": "VP-B", "name_zh": "黑色 瓦片 (18ft)", "name_en": "V-Panel Black (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "VP-W-24ft", "sku": "VP-W-24ft", "base_sku": "VP-W", "name_zh": "白色 瓦片 (24ft)", "name_en": "V-Panel White (24ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 24, "stock": 0, "min_stock": 5}, {"id": "VP-W-22ft", "sku": "VP-W-22ft", "base_sku": "VP-W", "name_zh": "白色 瓦片 (22ft)", "name_en": "V-Panel White (22ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 22, "stock": 0, "min_stock": 5}, {"id": "VP-W-20ft", "sku": "VP-W-20ft", "base_sku": "VP-W", "name_zh": "白色 瓦片 (20ft)", "name_en": "V-Panel White (20ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 20, "stock": 0, "min_stock": 5}, {"id": "VP-W-18ft", "sku": "VP-W-18ft", "base_sku": "VP-W", "name_zh": "白色 瓦片 (18ft)", "name_en": "V-Panel White (18ft)", "category": "PATIO COVER PROFILES", "unit": "pcs", "size_ft": 18, "stock": 0, "min_stock": 5}, {"id": "GCL-12ft", "sku": "GCL-12ft", "base_sku": "GCL", "name_zh": "5mm Tempered Glass Clear (12ft)", "name_en": "5mm Tempered Glass Clear (12ft)", "category": "GLASS", "unit": "pcs", "size_ft": 12, "stock": 0, "min_stock": 5}, {"id": "GCL-11ft", "sku": "GCL-11ft", "base_sku": "GCL", "name_zh": "5mm Tempered Glass Clear (11ft)", "name_en": "5mm Tempered Glass Clear (11ft)", "category": "GLASS", "unit": "pcs", "size_ft": 11, "stock": 0, "min_stock": 5}, {"id": "GCL-10ft", "sku": "GCL-10ft", "base_sku": "GCL", "name_zh": "5mm Tempered Glass Clear (10ft)", "name_en": "5mm Tempered Glass Clear (10ft)", "category": "GLASS", "unit": "pcs", "size_ft": 10, "stock": 0, "min_stock": 5}, {"id": "GCL-9ft", "sku": "GCL-9ft", "base_sku": "GCL", "name_zh": "5mm Tempered Glass Clear (9ft)", "name_en": "5mm Tempered Glass Clear (9ft)", "category": "GLASS", "unit": "pcs", "size_ft": 9, "stock": 0, "min_stock": 5}, {"id": "GLG-12ft", "sku": "GLG-12ft", "base_sku": "GLG", "name_zh": "5mm Tempered Glass Light Grey (12ft)", "name_en": "5mm Tempered Glass Light Grey (12ft)", "category": "GLASS", "unit": "pcs", "size_ft": 12, "stock": 0, "min_stock": 5}, {"id": "GLG-11ft", "sku": "GLG-11ft", "base_sku": "GLG", "name_zh": "5mm Tempered Glass Light Grey (11ft)", "name_en": "5mm Tempered Glass Light Grey (11ft)", "category": "GLASS", "unit": "pcs", "size_ft": 11, "stock": 0, "min_stock": 5}, {"id": "GLG-10ft", "sku": "GLG-10ft", "base_sku": "GLG", "name_zh": "5mm Tempered Glass Light Grey (10ft)", "name_en": "5mm Tempered Glass Light Grey (10ft)", "category": "GLASS", "unit": "pcs", "size_ft": 10, "stock": 0, "min_stock": 5}, {"id": "GLG-9ft", "sku": "GLG-9ft", "base_sku": "GLG", "name_zh": "5mm Tempered Glass Light Grey (9ft)", "name_en": "5mm Tempered Glass Light Grey (9ft)", "category": "GLASS", "unit": "pcs", "size_ft": 9, "stock": 0, "min_stock": 5}, {"id": "GDG-12ft", "sku": "GDG-12ft", "base_sku": "GDG", "name_zh": "5mm Tempered Glass Dark Grey (12ft)", "name_en": "5mm Tempered Glass Dark Grey (12ft)", "category": "GLASS", "unit": "pcs", "size_ft": 12, "stock": 0, "min_stock": 5}, {"id": "GDG-11ft", "sku": "GDG-11ft", "base_sku": "GDG", "name_zh": "5mm Tempered Glass Dark Grey (11ft)", "name_en": "5mm Tempered Glass Dark Grey (11ft)", "category": "GLASS", "unit": "pcs", "size_ft": 11, "stock": 0, "min_stock": 5}, {"id": "GDG-10ft", "sku": "GDG-10ft", "base_sku": "GDG", "name_zh": "5mm Tempered Glass Dark Grey (10ft)", "name_en": "5mm Tempered Glass Dark Grey (10ft)", "category": "GLASS", "unit": "pcs", "size_ft": 10, "stock": 0, "min_stock": 5}, {"id": "GDG-9ft", "sku": "GDG-9ft", "base_sku": "GDG", "name_zh": "5mm Tempered Glass Dark Grey (9ft)", "name_en": "5mm Tempered Glass Dark Grey (9ft)", "category": "GLASS", "unit": "pcs", "size_ft": 9, "stock": 0, "min_stock": 5}, {"id": "T32B", "sku": "T32B", "base_sku": "T32B", "name_zh": "Glass Stop Black", "name_en": "Glass Stop Black", "category": "GLASS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T32W", "sku": "T32W", "base_sku": "T32W", "name_zh": "Glass Stop White", "name_en": "Glass Stop White", "category": "GLASS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T09", "sku": "T09", "base_sku": "T09", "name_zh": "玻璃接駁件", "name_en": "Glass Splice", "category": "GLASS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T05", "sku": "T05", "base_sku": "T05", "name_zh": "下水口", "name_en": "Poly Outlet", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T19", "sku": "T19", "base_sku": "T19", "name_zh": "小海棉", "name_en": "Sponge", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T02B", "sku": "T02B", "base_sku": "T02B", "name_zh": "黑色下水管", "name_en": "Down Pipe Black", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T02W", "sku": "T02W", "base_sku": "T02W", "name_zh": "白色下水管", "name_en": "Down Pipe White", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T11B", "sku": "T11B", "base_sku": "T11B", "name_zh": "管帶黑色", "name_en": "Pipe Straps Black", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T11W", "sku": "T11W", "base_sku": "T11W", "name_zh": "管帶白色", "name_en": "Pipe Straps White", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T01B", "sku": "T01B", "base_sku": "T01B", "name_zh": "黑色下水管彎頭", "name_en": "Elbow Black", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T01W", "sku": "T01W", "base_sku": "T01W", "name_zh": "白色下水管彎頭", "name_en": "Elbow White", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T10", "sku": "T10", "base_sku": "T10", "name_zh": "水槽接驳件", "name_en": "Gutter Splice", "category": "GUTTERS & DRAINAGE", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T06B", "sku": "T06B", "base_sku": "T06B", "name_zh": "柱碼 黑色", "name_en": "Post Shoe Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T06W", "sku": "T06W", "base_sku": "T06W", "name_zh": "柱碼 白色", "name_en": "Post Shoe White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T20B", "sku": "T20B", "base_sku": "T20B", "name_zh": "側裝柱碼 黑色", "name_en": "Side-Mount Shoe Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T20W", "sku": "T20W", "base_sku": "T20W", "name_zh": "側裝柱碼 白色", "name_en": "Side-Mount Shoe White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T07B", "sku": "T07B", "base_sku": "T07B", "name_zh": "4吋工字梁接駁件 黑色", "name_en": "4\" I Beam Splice Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T07W", "sku": "T07W", "base_sku": "T07W", "name_zh": "4吋工字梁接駁件 白色", "name_en": "4\" I Beam Splice White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T08B", "sku": "T08B", "base_sku": "T08B", "name_zh": "6吋工字梁接駁件 黑色", "name_en": "6\" I Beam Splice Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T08W", "sku": "T08W", "base_sku": "T08W", "name_zh": "6吋工字梁接駁件 白色", "name_en": "6\" I Beam Splice White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T24B", "sku": "T24B", "base_sku": "T24B", "name_zh": "8吋工字梁接駁件 黑色", "name_en": "8\" I Beam Splice Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T24W", "sku": "T24W", "base_sku": "T24W", "name_zh": "8吋工字梁接駁件 白色", "name_en": "8\" I Beam Splice White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T15B", "sku": "T15B", "base_sku": "T15B", "name_zh": "包角 黑色", "name_en": "Small Corner Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T15W", "sku": "T15W", "base_sku": "T15W", "name_zh": "包角 白色", "name_en": "Small Corner White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T33B", "sku": "T33B", "base_sku": "T33B", "name_zh": "8\" Black / 5/8吋 黑色", "name_en": "Screw 5", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T33W", "sku": "T33W", "base_sku": "T33W", "name_zh": "8\" White / 5/8吋 白色", "name_en": "Screw 5", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T34B", "sku": "T34B", "base_sku": "T34B", "name_zh": "1吋 黑色", "name_en": "Screw 1\" Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T34W", "sku": "T34W", "base_sku": "T34W", "name_zh": "1吋 白色", "name_en": "Screw 1\" White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T35B", "sku": "T35B", "base_sku": "T35B", "name_zh": "2\" Black / 1-1/2吋黑色", "name_en": "Screw 1-1", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T35W", "sku": "T35W", "base_sku": "T35W", "name_zh": "2\" White / 1-1/2吋 白色", "name_en": "Screw 1-1", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T36B", "sku": "T36B", "base_sku": "T36B", "name_zh": "2吋 黑色", "name_en": "Screw 2\" Black", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T36W", "sku": "T36W", "base_sku": "T36W", "name_zh": "2吋 白色", "name_en": "Screw 2\" White", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T37", "sku": "T37", "base_sku": "T37", "name_zh": "3吋 不銹鋼", "name_en": "Screw 3\" SS", "category": "HARDWARE & FASTENERS", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T25B", "sku": "T25B", "base_sku": "T25B", "name_zh": "雙面膠 黑色", "name_en": "Double Side Tape", "category": "SEALANTS & ADHESIVES", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T25W", "sku": "T25W", "base_sku": "T25W", "name_zh": "雙面膠 白色", "name_en": "Double Side Tape", "category": "SEALANTS & ADHESIVES", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T21C", "sku": "T21C", "base_sku": "T21C", "name_zh": "透明膠", "name_en": "Caulking Clear", "category": "SEALANTS & ADHESIVES", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T21W", "sku": "T21W", "base_sku": "T21W", "name_zh": "白色膠", "name_en": "Caulking White 830", "category": "SEALANTS & ADHESIVES", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T22W", "sku": "T22W", "base_sku": "T22W", "name_zh": "白色膠", "name_en": "Caulking White 1010", "category": "SEALANTS & ADHESIVES", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}, {"id": "T21W", "sku": "T21W", "base_sku": "T21W", "name_zh": "黑色膠", "name_en": "Caulking Black 830", "category": "SEALANTS & ADHESIVES", "unit": "pcs", "size_ft": null, "stock": 0, "min_stock": 10}];
+let modalType='in', selectedSku=null, ddVisible=false;
+function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+let stock=lsGet('bpc_inv_stock',{}), history=lsGet('bpc_inv_hist',[]);
+function saveAll(){lsSet('bpc_inv_stock',stock);lsSet('bpc_inv_hist',history);}
+function getStock(sku){return stock[sku]||0;}
+function getMin(sku){const p=PRODUCTS.find(p=>p.sku===sku);return p?p.min_stock:5;}
+function getStatus(sku){const s=getStock(sku),m=getMin(sku);if(s===0)return'zero';if(s<=m)return'low';return'ok';}
+
+function renderSummary(){
+  const total=PRODUCTS.length,zero=PRODUCTS.filter(p=>getStock(p.sku)===0).length;
+  const low=PRODUCTS.filter(p=>{const s=getStock(p.sku);return s>0&&s<=getMin(p.sku);}).length;
+  const totalUnits=PRODUCTS.reduce((a,p)=>a+getStock(p.sku),0);
+  document.getElementById('summary-grid').innerHTML=`
+    <div class="sum-card"><div class="sum-label">總產品數</div><div class="sum-val">${total}</div><div class="sum-sub">131個SKU · 5類別</div></div>
+    <div class="sum-card ok"><div class="sum-label">庫存正常</div><div class="sum-val">${total-zero-low}</div><div class="sum-sub">超過最低庫存量</div></div>
+    <div class="sum-card alert"><div class="sum-label">低庫存/缺貨</div><div class="sum-val">${low+zero}</div><div class="sum-sub">${zero}缺貨 · ${low}偏低</div></div>
+    <div class="sum-card"><div class="sum-label">總庫存件數</div><div class="sum-val">${totalUnits.toLocaleString()}</div><div class="sum-sub">所有SKU合計</div></div>`;
+}
+
+function catBadge(cat){
+  const m={'PATIO COVER PROFILES':'cat-PATIO 型材','GLASS':'cat-GLASS 玻璃','GUTTERS & DRAINAGE':'cat-GUTTERS 排水','HARDWARE & FASTENERS':'cat-HARDWARE 五金','SEALANTS & ADHESIVES':'cat-SEALANTS 密封膠'};
+  const v=m[cat]||cat; const cls=v.split(' ')[0]; const lbl=v.split(' ').slice(1).join(' ');
+  return `<span class="cat-badge ${cls}">${lbl}</span>`;
+}
+
+function renderTable(){
+  const q=document.getElementById('search-box').value.toLowerCase();
+  const cat=document.getElementById('cat-filter').value;
+  const sf=document.getElementById('stock-filter').value;
+  const filtered=PRODUCTS.filter(p=>{
+    if(q&&!p.sku.toLowerCase().includes(q)&&!p.name_zh.toLowerCase().includes(q)&&!p.name_en.toLowerCase().includes(q))return false;
+    if(cat&&p.category!==cat)return false;
+    if(sf){const st=getStatus(p.sku);if(st!==sf)return false;}
+    return true;
+  });
+  if(!filtered.length){document.getElementById('table-body').innerHTML='<div class="empty-row">沒有符合的產品</div>';return;}
+  document.getElementById('table-body').innerHTML=filtered.map(p=>{
+    const s=getStock(p.sku),st=getStatus(p.sku);
+    const sc=st==='zero'?'stock-zero':st==='low'?'stock-low':'stock-ok';
+    const bc=st==='zero'?'badge-zero':st==='low'?'badge-low':'badge-ok';
+    const bl=st==='zero'?'缺貨':st==='low'?'偏低':'正常';
+    return `<div class="table-row">
+      <span class="sku-tag">${p.sku}</span>
+      <span style="font-size:13px">${p.name_zh}</span>
+      <span>${catBadge(p.category)}</span>
+      <span class="sum-val ${sc}" style="font-size:16px">${s}</span>
+      <span style="color:var(--text3)">${getMin(p.sku)}</span>
+      <span><span class="stock-badge ${bc}">${bl}</span></span>
+      <span class="action-btns">
+        <button class="act-btn in" onclick="openModalFor('in','${p.sku}')">＋IN</button>
+        <button class="act-btn out" onclick="openModalFor('out','${p.sku}')">－OUT</button>
+      </span>
+    </div>`;
+  }).join('');
+}
+
+function renderHistory(){
+  const rev=[...history].reverse();
+  if(!rev.length){document.getElementById('history-body').innerHTML='<div class="empty-row">尚無異動記錄</div>';return;}
+  document.getElementById('history-body').innerHTML=rev.slice(0,300).map(h=>{
+    const t=h.type==='in'?'<span class="in-tag">▲IN</span>':'<span class="out-tag">▼OUT</span>';
+    return `<div class="hist-row">
+      <span>${h.date}</span><span style="color:var(--text3)">${h.time}</span>
+      <span><span class="sku-tag">${h.sku}</span><br><span style="font-size:11px;color:var(--text3)">${h.name}</span></span>
+      <span>${t}</span><span style="font-weight:600">${h.qty}</span><span>${h.after}</span>
+      <span style="color:var(--text3);font-size:11px">${h.note||'—'}</span>
+    </div>`;
+  }).join('');
+}
+function clearHistory(){if(!confirm('確定清除所有異動記錄？'))return;history=[];saveAll();renderHistory();}
+
+function switchTab(t){
+  document.getElementById('view-inv').style.display=t==='inv'?'block':'none';
+  document.getElementById('view-hist').style.display=t==='hist'?'block':'none';
+  document.getElementById('tab-inv').className='tab-btn'+(t==='inv'?' active':'');
+  document.getElementById('tab-hist').className='tab-btn'+(t==='hist'?' active':'');
+  if(t==='hist')renderHistory();
+}
+
+function openModal(type){
+  modalType=type; selectedSku=null;
+  document.getElementById('modal-title').textContent=type==='in'?'＋ 入庫 (IN)':'－ 出庫 (OUT)';
+  document.getElementById('modal-confirm').textContent=type==='in'?'確認入庫':'確認出庫';
+  document.getElementById('modal-confirm').className='btn '+(type==='in'?'btn-green':'btn-red');
+  document.getElementById('modal-sku-input').value='';
+  document.getElementById('modal-product-info').innerHTML='';
+  document.getElementById('modal-qty').value=1;
+  document.getElementById('modal-date').value=new Date().toLocaleDateString('en-CA');
+  document.getElementById('modal-note').value='';
+  document.getElementById('modal-dd').innerHTML='';
+  document.getElementById('modal-bg').classList.add('show');
+  setTimeout(()=>document.getElementById('modal-sku-input').focus(),100);
+}
+function openModalFor(type,sku){
+  openModal(type);
+  const p=PRODUCTS.find(p=>p.sku===sku);
+  if(p){selectedSku=sku;document.getElementById('modal-sku-input').value=sku;showProductInfo(p);}
+}
+function closeModal(){document.getElementById('modal-bg').classList.remove('show');}
+function closeModalBg(e){if(e.target===document.getElementById('modal-bg'))closeModal();}
+function showProductInfo(p){
+  document.getElementById('modal-product-info').innerHTML=`
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 12px">
+      <div style="font-weight:700;color:var(--brand)">${p.sku}</div>
+      <div style="font-size:14px;font-weight:500;margin-top:2px">${p.name_zh}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px">現有庫存: <strong style="color:var(--text)">${getStock(p.sku)}</strong> pcs · 最低庫存: ${getMin(p.sku)} pcs</div>
+    </div>`;
+}
+function buildDdHtml(list){
+  if(!list.length)return'<div class="sku-dd-wrap"><div style="padding:10px 12px;font-size:12px;color:var(--text3)">找不到產品</div></div>';
+  return'<div class="sku-dd-wrap">'+list.map(p=>`<div class="sku-dd-item"
+    onmousedown="selectSku('${p.sku}')" ontouchstart="selectSku('${p.sku}')" onclick="selectSku('${p.sku}')">
+    <span style="font-weight:700;color:var(--brand)">${p.sku}</span>
+    <span style="margin-left:8px">${p.name_zh}</span>
+    <span style="float:right;color:var(--text3)">庫存:${getStock(p.sku)}</span>
+  </div>`).join('')+'</div>';
+}
+function filterModalSku(v){
+  const q=v.toLowerCase();
+  const m=PRODUCTS.filter(p=>p.sku.toLowerCase().includes(q)||p.name_zh.toLowerCase().includes(q)||p.name_en.toLowerCase().includes(q));
+  document.getElementById('modal-dd').innerHTML=buildDdHtml(m.slice(0,20));
+  ddVisible=true;
+}
+function showModalDd(){
+  const v=document.getElementById('modal-sku-input').value;
+  const m=v?PRODUCTS.filter(p=>p.sku.toLowerCase().includes(v.toLowerCase())||p.name_zh.includes(v)):PRODUCTS.slice(0,20);
+  document.getElementById('modal-dd').innerHTML=buildDdHtml(m.slice(0,20));
+  ddVisible=true;
+}
+function hideModalDd(){ddVisible=false;setTimeout(()=>{if(!ddVisible)document.getElementById('modal-dd').innerHTML='';},300);}
+function selectSku(sku){
+  selectedSku=sku;
+  document.getElementById('modal-sku-input').value=sku;
+  document.getElementById('modal-dd').innerHTML='';
+  const p=PRODUCTS.find(p=>p.sku===sku);
+  if(p)showProductInfo(p);
+}
+
+function confirmTx(){
+  if(!selectedSku){alert('請先選擇產品SKU');return;}
+  const qty=parseInt(document.getElementById('modal-qty').value)||0;
+  if(qty<=0){alert('請輸入有效數量');return;}
+  const date=document.getElementById('modal-date').value;
+  const note=document.getElementById('modal-note').value.trim();
+  const p=PRODUCTS.find(p=>p.sku===selectedSku);
+  const cur=getStock(selectedSku);
+  if(modalType==='out'&&qty>cur){if(!confirm(`警告：出庫(${qty})超過庫存(${cur})！確定繼續？`))return;}
+  const after=modalType==='in'?cur+qty:Math.max(0,cur-qty);
+  stock[selectedSku]=after;
+  const now=new Date();
+  history.push({date,time:now.toTimeString().slice(0,5),sku:selectedSku,name:p?p.name_zh:selectedSku,type:modalType,qty,after,note});
+  saveAll();renderSummary();renderTable();closeModal();
+}
+
+function exportCSV(){
+  const rows=[['SKU','中文名稱','英文名稱','類別','庫存','最低庫存','狀態']];
+  PRODUCTS.forEach(p=>{
+    const s=getStock(p.sku),st=getStatus(p.sku);
+    rows.push([p.sku,p.name_zh,p.name_en,p.category,s,getMin(p.sku),st==='zero'?'缺貨':st==='low'?'偏低':'正常']);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='bowen_inventory_'+new Date().toLocaleDateString('en-CA')+'.csv';a.click();
+}
+
+renderSummary();renderTable();
+</script>
+</body>
+</html>
