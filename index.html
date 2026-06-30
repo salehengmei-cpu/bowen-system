@@ -904,7 +904,8 @@ function fillSku(oid,idx,sku){
 
 // ── Library ──
 // ── Custom products (override master list) ──
-let customProducts = lsGet('bpc_custom_products', null);
+let customProducts = null;
+try { const _cp = safeGet('bpc_custom_products'); customProducts = _cp ? JSON.parse(_cp) : null; } catch(e) { customProducts = null; }
 // If customProducts is null, use master PRODUCTS; otherwise use custom list
 // Normalize: inventory uses name_zh/name_en, planner uses desc — handle both
 function getProducts() {
@@ -915,8 +916,8 @@ function getProducts() {
     name_zh: p.name_zh || p.desc || p.sku,
   }));
 }
-function saveProducts(list) { customProducts = list; lsSet('bpc_custom_products', list); }
-function resetProducts() { customProducts = null; lsSet('bpc_custom_products', null); }
+function saveProducts(list) { customProducts = list; safeSet('bpc_custom_products', JSON.stringify(list)); }
+function resetProducts() { customProducts = null; safeSet('bpc_custom_products', ''); }
 
 // ── Settings page ──
 function renderSettings() {
@@ -1001,7 +1002,7 @@ function deleteProduct(i) {
 }
 function resetToDefault() {
   if (!confirm('確定還原為預設產品列表？所有自訂修改將會遺失。')) return;
-  try { localStorage.removeItem('bpc_custom_products'); } catch(e) {}
+  try { safeSet('bpc_custom_products', ''); } catch(e) {}
   resetProducts();
   renderSettings();
 }
