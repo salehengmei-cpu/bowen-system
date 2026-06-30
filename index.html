@@ -922,14 +922,30 @@ function resetProducts() { customProducts = null; lsSet('bpc_custom_products', n
 function renderSettings() {
   const list = getProducts();
   const isCustom = customProducts !== null;
+
+  // Safety check — if list is empty or corrupted, show recovery UI
+  if (!list || !list.length) {
+    document.getElementById('main-panel').innerHTML = `
+      <div class="order-topbar"><span style="font-size:16px;font-weight:600;">⚙️ 產品設定</span></div>
+      <div class="content">
+        <div style="background:#fff;border:1px solid #E3DDD3;border-radius:10px;padding:24px;text-align:center;">
+          <p style="font-size:14px;color:#6B6158;margin-bottom:16px;">⚠️ 產品列表為空或資料損壞</p>
+          <button onclick="resetToDefault()" style="padding:10px 20px;background:#7B5E3A;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">↩ 還原為預設104個產品</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const esc = v => String(v == null ? '' : v).replace(/"/g, '&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
   const rows = list.map((p,i) => `
-    <div class="lib-row" id="srow-${i}" style="display:grid;grid-template-columns:1.1fr 1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 32px;gap:5px;padding:5px 13px;border-bottom:1px solid var(--border2);align-items:center;">
-      <input value="${p.sku}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'sku',this.value)">
-      <input value="${p.desc}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'desc',this.value)">
-      <input type="number" value="${p.l}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'l',+this.value)">
-      <input type="number" value="${p.w}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'w',+this.value)">
-      <input type="number" value="${p.h}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'h',+this.value)">
-      <input type="number" value="${p.wt}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" step="0.001" onchange="editProduct(${i},'wt',+this.value)">
+    <div style="display:grid;grid-template-columns:1.1fr 1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 32px;gap:5px;padding:5px 13px;border-bottom:1px solid var(--border2);align-items:center;">
+      <input value="${esc(p.sku)}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'sku',this.value)">
+      <input value="${esc(p.desc||p.name_zh||p.name_en||'')}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'desc',this.value)">
+      <input type="number" value="${p.l||0}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'l',+this.value)">
+      <input type="number" value="${p.w||0}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'w',+this.value)">
+      <input type="number" value="${p.h||0}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'h',+this.value)">
+      <input type="number" value="${p.wt||0}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" step="0.001" onchange="editProduct(${i},'wt',+this.value)">
       <button onclick="deleteProduct(${i})" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;padding:2px 4px;" title="刪除">✕</button>
     </div>`).join('');
 
@@ -941,16 +957,16 @@ function renderSettings() {
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="addProduct()" style="padding:6px 12px;background:#7B5E3A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;">＋ 新增SKU</button>
-        <button onclick="document.getElementById('import-csv').click()" style="padding:6px 12px;background:none;border:1px solid #D0C8BC;border-radius:6px;cursor:pointer;font-size:12px;">📥 匯入CSV/Excel</button>
+        <button onclick="document.getElementById('import-csv').click()" style="padding:6px 12px;background:none;border:1px solid #D0C8BC;border-radius:6px;cursor:pointer;font-size:12px;">📥 匯入CSV</button>
         <input id="import-csv" type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(this)">
         <button onclick="exportProductsCSV()" style="padding:6px 12px;background:none;border:1px solid #D0C8BC;border-radius:6px;cursor:pointer;font-size:12px;">📤 匯出CSV</button>
-        ${isCustom ? '<button onclick="resetToDefault()" style="padding:6px 12px;background:none;border:1px solid #dc2626;border-radius:6px;cursor:pointer;font-size:12px;color:#dc2626;">↩ 還原預設</button>' : ''}
+        <button onclick="resetToDefault()" style="padding:6px 12px;background:none;border:1px solid #dc2626;border-radius:6px;cursor:pointer;font-size:12px;color:#dc2626;">↩ 還原預設</button>
       </div>
     </div>
     <div class="content">
       <div style="background:#fff;border:1px solid #E3DDD3;border-radius:10px;overflow:hidden;">
         <div style="padding:10px 13px;background:#f5f2ee;border-bottom:1px solid #E3DDD3;font-size:12px;color:#6B6158;">
-          📌 CSV格式：SKU, 名稱, 長(cm), 寬(cm), 高(cm), 重量(kg) — 可用Excel另存為CSV後匯入
+          📌 CSV格式：SKU, 名稱, 長(cm), 寬(cm), 高(cm), 重量(kg)
         </div>
         <div style="display:grid;grid-template-columns:1.1fr 1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 32px;gap:5px;padding:5px 13px;font-size:10px;color:#9C8F84;border-bottom:1px solid #E3DDD3;background:#faf8f5;text-transform:uppercase;letter-spacing:.04em;">
           <span>SKU代碼</span><span>產品名稱</span><span>長cm</span><span>寬cm</span><span>高cm</span><span>重量kg</span><span></span>
@@ -985,6 +1001,7 @@ function deleteProduct(i) {
 }
 function resetToDefault() {
   if (!confirm('確定還原為預設產品列表？所有自訂修改將會遺失。')) return;
+  try { localStorage.removeItem('bpc_custom_products'); } catch(e) {}
   resetProducts();
   renderSettings();
 }
