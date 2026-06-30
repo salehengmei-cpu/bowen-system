@@ -467,6 +467,10 @@ canvas.map-canvas {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
         產品資料庫
       </button>
+      <button class="nav-btn" id="nav-settings" onclick="switchTab('settings')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        產品設定
+      </button>
     </div>
     <div class="sb-divider"></div>
     <button class="new-order-btn" onclick="newOrder()">
@@ -772,7 +776,9 @@ function switchTab(t) {
   tab = t;
   document.getElementById('nav-orders').className = 'nav-btn'+(t==='orders'?' active':'');
   document.getElementById('nav-library').className = 'nav-btn'+(t==='library'?' active':'');
+  document.getElementById('nav-settings').className = 'nav-btn'+(t==='settings'?' active':'');
   if (t==='library') renderLibrary();
+  else if (t==='settings') renderSettings();
   else if (activeId) renderOrder(); else renderEmpty();
   if (window.innerWidth <= 760) toggleSidebar(false);
 }
@@ -861,7 +867,7 @@ function openSkuDropdown(oid, idx, inputEl) {
   const sk = `sk_${oid}_${idx}`;
   openSku = sk;
   const v = inputEl.value;
-  const matched = v ? PRODUCTS.filter(p=>p.sku.toLowerCase().includes(v.toLowerCase())||p.desc.includes(v)) : PRODUCTS;
+  const matched = v ? getProducts().filter(p=>p.sku.toLowerCase().includes(v.toLowerCase())||p.desc.includes(v)) : getProducts();
   const dd = getGlobalDropdown();
   dd.innerHTML = buildSkuOptionsHtml(oid, idx, matched);
   positionDropdown(inputEl);
@@ -879,7 +885,7 @@ function updateItemSkuTyping(id,i,inputEl){
   const v=inputEl.value;
   o.items[i].sku=v;
   save();
-  const matched=v?PRODUCTS.filter(p=>p.sku.toLowerCase().includes(v.toLowerCase())||p.desc.includes(v)):PRODUCTS;
+  const matched=v?getProducts().filter(p=>p.sku.toLowerCase().includes(v.toLowerCase())||p.desc.includes(v)):getProducts();
   const dd = getGlobalDropdown();
   dd.innerHTML = buildSkuOptionsHtml(id, i, matched);
   positionDropdown(inputEl);
@@ -887,7 +893,7 @@ function updateItemSkuTyping(id,i,inputEl){
 function fillSku(oid,idx,sku){
   gddTouching = false;
   const o=orders.find(o=>o.id===oid);if(!o)return;
-  const p=PRODUCTS.find(p=>p.sku===sku);
+  const p=getProducts().find(p=>p.sku===sku);
   if(p) o.items[idx]={...o.items[idx],sku:p.sku,desc:p.desc,l:p.l,w:p.w,h:p.h,wt:p.wt};
   else o.items[idx].sku=sku;
   openSku=null;
@@ -897,15 +903,133 @@ function fillSku(oid,idx,sku){
 }
 
 // ── Library ──
+// ── Custom products (override master list) ──
+let customProducts = lsGet('bpc_custom_products', null);
+// If customProducts is null, use master PRODUCTS; otherwise use custom list
+function getProducts() { return customProducts !== null ? customProducts : PRODUCTS; }
+function saveProducts(list) { customProducts = list; lsSet('bpc_custom_products', list); }
+function resetProducts() { customProducts = null; lsSet('bpc_custom_products', null); }
+
+// ── Settings page ──
+function renderSettings() {
+  const list = getProducts();
+  const isCustom = customProducts !== null;
+  const rows = list.map((p,i) => `
+    <div class="lib-row" id="srow-${i}" style="display:grid;grid-template-columns:1.1fr 1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 32px;gap:5px;padding:5px 13px;border-bottom:1px solid var(--border2);align-items:center;">
+      <input value="${p.sku}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'sku',this.value)">
+      <input value="${p.desc}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'desc',this.value)">
+      <input type="number" value="${p.l}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'l',+this.value)">
+      <input type="number" value="${p.w}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'w',+this.value)">
+      <input type="number" value="${p.h}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" onchange="editProduct(${i},'h',+this.value)">
+      <input type="number" value="${p.wt}" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border2);border-radius:4px;" step="0.001" onchange="editProduct(${i},'wt',+this.value)">
+      <button onclick="deleteProduct(${i})" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:14px;padding:2px 4px;" title="刪除">✕</button>
+    </div>`).join('');
+
+  document.getElementById('main-panel').innerHTML = `
+    <div class="order-topbar">
+      <div class="order-topbar-left" style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:16px;font-weight:600;">⚙️ 產品設定</span>
+        ${isCustom ? '<span style="font-size:11px;background:#fef3c7;color:#92400E;padding:3px 8px;border-radius:8px;">已修改</span>' : '<span style="font-size:11px;background:#f0fdf4;color:#166534;padding:3px 8px;border-radius:8px;">使用預設</span>'}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button onclick="addProduct()" style="padding:6px 12px;background:#7B5E3A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;">＋ 新增SKU</button>
+        <button onclick="document.getElementById('import-csv').click()" style="padding:6px 12px;background:none;border:1px solid #D0C8BC;border-radius:6px;cursor:pointer;font-size:12px;">📥 匯入CSV/Excel</button>
+        <input id="import-csv" type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="importFile(this)">
+        <button onclick="exportProductsCSV()" style="padding:6px 12px;background:none;border:1px solid #D0C8BC;border-radius:6px;cursor:pointer;font-size:12px;">📤 匯出CSV</button>
+        ${isCustom ? '<button onclick="resetToDefault()" style="padding:6px 12px;background:none;border:1px solid #dc2626;border-radius:6px;cursor:pointer;font-size:12px;color:#dc2626;">↩ 還原預設</button>' : ''}
+      </div>
+    </div>
+    <div class="content">
+      <div style="background:#fff;border:1px solid #E3DDD3;border-radius:10px;overflow:hidden;">
+        <div style="padding:10px 13px;background:#f5f2ee;border-bottom:1px solid #E3DDD3;font-size:12px;color:#6B6158;">
+          📌 CSV格式：SKU, 名稱, 長(cm), 寬(cm), 高(cm), 重量(kg) — 可用Excel另存為CSV後匯入
+        </div>
+        <div style="display:grid;grid-template-columns:1.1fr 1.6fr 0.6fr 0.6fr 0.6fr 0.6fr 32px;gap:5px;padding:5px 13px;font-size:10px;color:#9C8F84;border-bottom:1px solid #E3DDD3;background:#faf8f5;text-transform:uppercase;letter-spacing:.04em;">
+          <span>SKU代碼</span><span>產品名稱</span><span>長cm</span><span>寬cm</span><span>高cm</span><span>重量kg</span><span></span>
+        </div>
+        <div style="max-height:500px;overflow-y:auto;">${rows}</div>
+      </div>
+      <p style="font-size:12px;color:#9C8F84;margin-top:10px;">共 ${list.length} 個產品 · 修改後自動儲存</p>
+    </div>`;
+}
+
+function editProduct(i, field, val) {
+  const list = JSON.parse(JSON.stringify(getProducts()));
+  list[i][field] = val;
+  saveProducts(list);
+}
+function addProduct() {
+  const list = JSON.parse(JSON.stringify(getProducts()));
+  list.push({sku:'NEW-SKU', desc:'新產品名稱', l:100, w:10, h:10, wt:5});
+  saveProducts(list);
+  renderSettings();
+  // scroll to bottom
+  setTimeout(()=>{ const el=document.querySelector('.content div div:last-child'); if(el) el.scrollIntoView({behavior:'smooth'}); },100);
+}
+function deleteProduct(i) {
+  if (!confirm('確定刪除此產品？')) return;
+  const list = JSON.parse(JSON.stringify(getProducts()));
+  list.splice(i, 1);
+  saveProducts(list);
+  renderSettings();
+}
+function resetToDefault() {
+  if (!confirm('確定還原為預設產品列表？所有自訂修改將會遺失。')) return;
+  resetProducts();
+  renderSettings();
+}
+function exportProductsCSV() {
+  const list = getProducts();
+  const rows = [['SKU','名稱','長(cm)','寬(cm)','高(cm)','重量(kg)']];
+  list.forEach(p => rows.push([p.sku, p.desc, p.l, p.w, p.h, p.wt]));
+  const csv = rows.map(r => r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'bowen_products_'+new Date().toLocaleDateString('en-CA')+'.csv'; a.click();
+}
+function importFile(input) {
+  const file = input.files[0]; if (!file) return;
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.csv')) {
+    const reader = new FileReader();
+    reader.onload = e => { parseImportCSV(e.target.result); input.value=''; };
+    reader.readAsText(file, 'UTF-8');
+  } else {
+    alert('請使用CSV格式匯入。\n步驟：在Excel中開啟您的檔案 → 另存新檔 → 選擇「CSV UTF-8」格式 → 再匯入。');
+    input.value = '';
+  }
+}
+function parseImportCSV(text) {
+  const lines = text.trim().split('\n').filter(l=>l.trim());
+  const products = [];
+  let skipped = 0;
+  lines.forEach((line, idx) => {
+    // skip header row
+    const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g,'').trim());
+    if (idx===0 && isNaN(parseFloat(cols[2]))) return; // skip header
+    const [sku, desc, l, w, h, wt] = cols;
+    if (!sku || !desc) { skipped++; return; }
+    const lv=parseFloat(l), wv=parseFloat(w), hv=parseFloat(h), wtv=parseFloat(wt);
+    if (isNaN(lv)||isNaN(wv)||isNaN(hv)) { skipped++; return; }
+    products.push({sku:sku.trim(), desc:desc.trim(), l:lv, w:wv, h:hv, wt:isNaN(wtv)?0:wtv});
+  });
+  if (!products.length) { alert('匯入失敗：找不到有效的產品資料。\n請確認格式為：SKU, 名稱, 長, 寬, 高, 重量'); return; }
+  if (!confirm(`匯入 ${products.length} 個產品${skipped>0?'（跳過'+skipped+'行）':''}？\n這將取代現有產品列表。`)) return;
+  saveProducts(products);
+  renderSettings();
+  alert(`✅ 成功匯入 ${products.length} 個產品！`);
+}
+
+
 function renderLibrary() {
   const q = libQ.toLowerCase();
-  const filtered = PRODUCTS.filter(p=>!q||p.sku.toLowerCase().includes(q)||p.desc.includes(q));
+  const filtered = getProducts().filter(p=>!q||p.sku.toLowerCase().includes(q)||p.desc.includes(q));
   document.getElementById('main-panel').innerHTML = `
     <div class="order-topbar">
       <div class="order-topbar-left">
         <span style="font-size:16px;font-weight:600;">📦 產品資料庫</span>
       </div>
-      <span style="font-size:12px;color:#9C8F84;">${PRODUCTS.length} 個產品 · 來自打包尺寸表</span>
+      <span style="font-size:12px;color:#9C8F84;">${getProducts().length} 個產品</span>
     </div>
     <div class="content">
       <div class="items-card">

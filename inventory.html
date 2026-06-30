@@ -99,6 +99,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
   <div class="nav-links">
     <a class="nav-link" href="index.html">🧮 貨櫃計劃</a>
     <a class="nav-link active" href="inventory.html">📊 庫存管理</a>
+    <a class="nav-link" href="inventory.html#settings" onclick="switchToSettings()">⚙️ 產品設定</a>
   </div>
 </nav>
 <div class="page">
@@ -195,16 +196,104 @@ const PRODUCTS = [{"id": "A03B-24ft", "sku": "A03B-24ft", "base_sku": "A03B", "n
 let modalType='in', selectedSku=null, ddVisible=false;
 function lsGet(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch(e){return d;}}
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+// ── Custom products override ──
+let customProducts = lsGet('bpc_custom_products', null);
+function getProducts() { return customProducts !== null ? customProducts : PRODUCTS; }
+function saveProds(list) { customProducts = list; lsSet('bpc_custom_products', list); }
+function resetProds() { customProducts = null; lsSet('bpc_custom_products', null); }
+
 let stock=lsGet('bpc_inv_stock',{}), history=lsGet('bpc_inv_hist',[]);
 function saveAll(){lsSet('bpc_inv_stock',stock);lsSet('bpc_inv_hist',history);}
 function getStock(sku){return stock[sku]||0;}
-function getMin(sku){const p=PRODUCTS.find(p=>p.sku===sku);return p?p.min_stock:5;}
+function getMin(sku){const p=getProducts().find(p=>p.sku===sku);return p?p.min_stock:5;}
 function getStatus(sku){const s=getStock(sku),m=getMin(sku);if(s===0)return'zero';if(s<=m)return'low';return'ok';}
 
+// ── Settings ──
+function switchToSettings(){ setTimeout(()=>renderInvSettings(),50); return false; }
+function renderInvSettings(){
+  const list=getProducts(), isCustom=customProducts!==null;
+  document.getElementById('view-inv').style.display='none';
+  document.getElementById('view-hist').style.display='none';
+  document.getElementById('tab-inv').className='tab-btn';
+  document.getElementById('tab-hist').className='tab-btn';
+  let settingsDiv=document.getElementById('view-settings');
+  if(!settingsDiv){settingsDiv=document.createElement('div');settingsDiv.id='view-settings';document.querySelector('.page').appendChild(settingsDiv);}
+  settingsDiv.style.display='block';
+  const rows=list.map((p,i)=>`
+    <div style="display:grid;grid-template-columns:1.1fr 1.8fr 1fr 0.6fr 28px;gap:5px;padding:7px 14px;border-bottom:1px solid var(--border);align-items:center;">
+      <input value="${p.sku}" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;" onchange="invEdit(${i},'sku',this.value)">
+      <input value="${p.name_zh||p.name_en||''}" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;" onchange="invEdit(${i},'name_zh',this.value)">
+      <select style="width:100%;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:10px;" onchange="invEdit(${i},'category',this.value)">
+        ${['PATIO COVER PROFILES','GLASS','GUTTERS & DRAINAGE','HARDWARE & FASTENERS','SEALANTS & ADHESIVES'].map(c=>`<option value="${c}"${p.category===c?' selected':''}>${c}</option>`).join('')}
+      </select>
+      <input type="number" value="${p.min_stock||5}" min="0" style="width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;" onchange="invEdit(${i},'min_stock',+this.value)" title="最低庫存">
+      <button onclick="invDel(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;">✕</button>
+    </div>`).join('');
+  settingsDiv.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <h2 style="font-size:18px;font-weight:700;">⚙️ 產品設定</h2>
+        ${isCustom?'<span style="font-size:11px;background:#fef3c7;color:#92400E;padding:3px 8px;border-radius:8px;">已修改</span>':'<span style="font-size:11px;background:#f0fdf4;color:#166534;padding:3px 8px;border-radius:8px;">使用預設</span>'}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button onclick="invAdd()" class="btn btn-primary" style="font-size:12px;">＋ 新增SKU</button>
+        <button onclick="document.getElementById('inv-csv-input').click()" class="btn btn-outline" style="font-size:12px;">📥 匯入CSV</button>
+        <input id="inv-csv-input" type="file" accept=".csv" style="display:none" onchange="invImport(this)">
+        <button onclick="invExport()" class="btn btn-outline" style="font-size:12px;">📤 匯出CSV</button>
+        ${isCustom?'<button onclick="invReset()" style="padding:6px 12px;border:1px solid var(--red);border-radius:6px;background:none;cursor:pointer;font-size:12px;color:var(--red);">↩ 還原預設</button>':''}
+        <button onclick="hideSettings()" class="btn btn-outline" style="font-size:12px;">← 返回庫存</button>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+      <div style="padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);">📌 CSV格式：SKU, 中文名稱, 英文名稱, 類別, 最低庫存</div>
+      <div style="display:grid;grid-template-columns:1.1fr 1.8fr 1fr 0.6fr 28px;gap:5px;padding:6px 14px;font-size:10px;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg3);text-transform:uppercase;letter-spacing:.04em;">
+        <span>SKU</span><span>中文名稱</span><span>類別</span><span>最低量</span><span></span>
+      </div>
+      <div style="max-height:500px;overflow-y:auto;">${rows}</div>
+    </div>
+    <p style="font-size:12px;color:var(--text3);">共 ${list.length} 個產品 · 修改後自動儲存</p>`;
+}
+function hideSettings(){const s=document.getElementById('view-settings');if(s)s.style.display='none';switchTab('inv');}
+function invEdit(i,f,v){const l=JSON.parse(JSON.stringify(getProducts()));l[i][f]=f==='min_stock'?(+v||0):v;if(f==='name_zh')l[i].name_en=v;saveProds(l);renderSummary();renderTable();}
+function invAdd(){const l=JSON.parse(JSON.stringify(getProducts()));l.push({id:'NEW',sku:'NEW-SKU',base_sku:'NEW',name_zh:'新產品',name_en:'New Product',category:'HARDWARE & FASTENERS',unit:'pcs',size_ft:null,stock:0,min_stock:10});saveProds(l);renderInvSettings();}
+function invDel(i){if(!confirm('確定刪除？'))return;const l=JSON.parse(JSON.stringify(getProducts()));l.splice(i,1);saveProds(l);renderSummary();renderTable();renderInvSettings();}
+function invReset(){if(!confirm('確定還原預設？'))return;resetProds();renderSummary();renderTable();renderInvSettings();}
+function invExport(){
+  const l=getProducts();
+  const rows=[['SKU','中文名稱','英文名稱','類別','最低庫存']];
+  l.forEach(p=>rows.push([p.sku,p.name_zh||'',p.name_en||'',p.category||'',p.min_stock||5]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='bowen_inv_products_'+new Date().toLocaleDateString('en-CA')+'.csv';a.click();
+}
+function invImport(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.trim().split('\n').filter(l=>l.trim());
+    const products=[];let skipped=0;
+    lines.forEach((line,idx)=>{
+      const cols=line.split(',').map(c=>c.trim().replace(/^"|"$/g,'').trim());
+      if(idx===0&&cols[0].toLowerCase().includes('sku'))return;
+      const[sku,name_zh,name_en,category,min_stock]=cols;
+      if(!sku){skipped++;return;}
+      products.push({id:sku,sku,base_sku:sku.split('-')[0],name_zh:name_zh||sku,name_en:name_en||sku,category:category||'HARDWARE & FASTENERS',unit:'pcs',size_ft:null,stock:0,min_stock:parseInt(min_stock)||5});
+    });
+    if(!products.length){alert('匯入失敗：找不到有效資料');return;}
+    if(!confirm(`匯入 ${products.length} 個產品？這將取代現有列表。`))return;
+    saveProds(products);renderSummary();renderTable();renderInvSettings();
+    alert(`✅ 成功匯入 ${products.length} 個產品！`);input.value='';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+
 function renderSummary(){
-  const total=PRODUCTS.length,zero=PRODUCTS.filter(p=>getStock(p.sku)===0).length;
-  const low=PRODUCTS.filter(p=>{const s=getStock(p.sku);return s>0&&s<=getMin(p.sku);}).length;
-  const totalUnits=PRODUCTS.reduce((a,p)=>a+getStock(p.sku),0);
+  const total=getProducts().length,zero=getProducts().filter(p=>getStock(p.sku)===0).length;
+  const low=getProducts().filter(p=>{const s=getStock(p.sku);return s>0&&s<=getMin(p.sku);}).length;
+  const totalUnits=getProducts().reduce((a,p)=>a+getStock(p.sku),0);
   document.getElementById('summary-grid').innerHTML=`
     <div class="sum-card"><div class="sum-label">總產品數</div><div class="sum-val">${total}</div><div class="sum-sub">131個SKU · 5類別</div></div>
     <div class="sum-card ok"><div class="sum-label">庫存正常</div><div class="sum-val">${total-zero-low}</div><div class="sum-sub">超過最低庫存量</div></div>
@@ -222,7 +311,7 @@ function renderTable(){
   const q=document.getElementById('search-box').value.toLowerCase();
   const cat=document.getElementById('cat-filter').value;
   const sf=document.getElementById('stock-filter').value;
-  const filtered=PRODUCTS.filter(p=>{
+  const filtered=getProducts().filter(p=>{
     if(q&&!p.sku.toLowerCase().includes(q)&&!p.name_zh.toLowerCase().includes(q)&&!p.name_en.toLowerCase().includes(q))return false;
     if(cat&&p.category!==cat)return false;
     if(sf){const st=getStatus(p.sku);if(st!==sf)return false;}
@@ -288,7 +377,7 @@ function openModal(type){
 }
 function openModalFor(type,sku){
   openModal(type);
-  const p=PRODUCTS.find(p=>p.sku===sku);
+  const p=getProducts().find(p=>p.sku===sku);
   if(p){selectedSku=sku;document.getElementById('modal-sku-input').value=sku;showProductInfo(p);}
 }
 function closeModal(){document.getElementById('modal-bg').classList.remove('show');}
@@ -312,13 +401,13 @@ function buildDdHtml(list){
 }
 function filterModalSku(v){
   const q=v.toLowerCase();
-  const m=PRODUCTS.filter(p=>p.sku.toLowerCase().includes(q)||p.name_zh.toLowerCase().includes(q)||p.name_en.toLowerCase().includes(q));
+  const m=getProducts().filter(p=>p.sku.toLowerCase().includes(q)||p.name_zh.toLowerCase().includes(q)||p.name_en.toLowerCase().includes(q));
   document.getElementById('modal-dd').innerHTML=buildDdHtml(m.slice(0,20));
   ddVisible=true;
 }
 function showModalDd(){
   const v=document.getElementById('modal-sku-input').value;
-  const m=v?PRODUCTS.filter(p=>p.sku.toLowerCase().includes(v.toLowerCase())||p.name_zh.includes(v)):PRODUCTS.slice(0,20);
+  const m=v?getProducts().filter(p=>p.sku.toLowerCase().includes(v.toLowerCase())||p.name_zh.includes(v)):getProducts().slice(0,20);
   document.getElementById('modal-dd').innerHTML=buildDdHtml(m.slice(0,20));
   ddVisible=true;
 }
@@ -327,7 +416,7 @@ function selectSku(sku){
   selectedSku=sku;
   document.getElementById('modal-sku-input').value=sku;
   document.getElementById('modal-dd').innerHTML='';
-  const p=PRODUCTS.find(p=>p.sku===sku);
+  const p=getProducts().find(p=>p.sku===sku);
   if(p)showProductInfo(p);
 }
 
@@ -337,7 +426,7 @@ function confirmTx(){
   if(qty<=0){alert('請輸入有效數量');return;}
   const date=document.getElementById('modal-date').value;
   const note=document.getElementById('modal-note').value.trim();
-  const p=PRODUCTS.find(p=>p.sku===selectedSku);
+  const p=getProducts().find(p=>p.sku===selectedSku);
   const cur=getStock(selectedSku);
   if(modalType==='out'&&qty>cur){if(!confirm(`警告：出庫(${qty})超過庫存(${cur})！確定繼續？`))return;}
   const after=modalType==='in'?cur+qty:Math.max(0,cur-qty);
@@ -349,7 +438,7 @@ function confirmTx(){
 
 function exportCSV(){
   const rows=[['SKU','中文名稱','英文名稱','類別','庫存','最低庫存','狀態']];
-  PRODUCTS.forEach(p=>{
+  getProducts().forEach(p=>{
     const s=getStock(p.sku),st=getStatus(p.sku);
     rows.push([p.sku,p.name_zh,p.name_en,p.category,s,getMin(p.sku),st==='zero'?'缺貨':st==='low'?'偏低':'正常']);
   });
