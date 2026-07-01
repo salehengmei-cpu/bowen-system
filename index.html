@@ -286,14 +286,18 @@ canvas.map-canvas {
 }
 #sku-global-dropdown.open { display: block; }
 .sku-opt {
-  padding: 8px 12px; cursor: pointer; font-size: 12px;
+  padding: 11px 14px; cursor: pointer; font-size: 12px;
   border-bottom: 1px solid var(--border);
+  /* Ensure minimum tap target height on mobile */
+  min-height: 48px;
+  display: flex; flex-direction: column; justify-content: center;
+  user-select: none; -webkit-user-select: none;
 }
 .sku-opt:last-child { border-bottom: none; }
-.sku-opt:hover { background: var(--brand-light); }
-.sku-code { font-weight: 700; color: var(--brand); font-size: 12px; }
-.sku-name { color: var(--text); margin-top: 1px; }
-.sku-dims { color: var(--text3); font-size: 10px; margin-top: 2px; }
+.sku-opt:active { background: var(--brand-light); }
+.sku-code { font-weight: 700; color: var(--brand); font-size: 12px; pointer-events: none; }
+.sku-name { color: var(--text); margin-top: 2px; pointer-events: none; }
+.sku-dims { color: var(--text3); font-size: 10px; margin-top: 3px; pointer-events: none; }
 
 /* ── Library ── */
 .lib-search-wrap { padding: 10px 14px; border-bottom: 1px solid var(--border); }
@@ -818,18 +822,16 @@ function updateItem(id,i,f,v){const o=orders.find(o=>o.id===id);if(!o)return;o.i
 function buildSkuOptionsHtml(oid, idx, matched) {
   if (!matched.length) return '<div style="padding:14px;font-size:13px;color:#9C8F84;text-align:center;">找不到符合的SKU</div>';
   return matched.map(p=>`
-    <div class="sku-opt"
-      onmousedown="event.preventDefault();fillSku('${oid}',${idx},'${p.sku}')"
-      ontouchend="event.preventDefault();fillSku('${oid}',${idx},'${p.sku}')"
-      onclick="fillSku('${oid}',${idx},'${p.sku}')">
+    <div class="sku-opt" data-oid="${oid}" data-idx="${idx}" data-sku="${p.sku}">
       <div class="sku-code">${p.sku}</div>
       <div class="sku-name">${p.desc||p.name_zh||''}</div>
-      <div class="sku-dims">${p.l?p.l+' × '+p.w+' × '+p.h+' cm &nbsp;·&nbsp; '+p.wt+' kg':''}</div>
+      <div class="sku-dims">${p.l?p.l+' × '+p.w+' × '+p.h+' cm · '+p.wt+' kg':''}</div>
     </div>`).join('');
 }
 
 // ── Global fixed dropdown ──
 let gddInput = null;
+let _touchStartY = 0, _touchStartX = 0, _touchMoved = false;
 
 function getGlobalDropdown() {
   let el = document.getElementById('global-sku-dropdown');
@@ -848,9 +850,44 @@ function getGlobalDropdown() {
       '-webkit-overflow-scrolling:touch',
       'overscroll-behavior:contain',
     ].join(';');
-    // Prevent any touch on the dropdown from closing it
-    el.addEventListener('touchstart', e => { e.stopPropagation(); }, {passive:true});
-    el.addEventListener('mousedown', e => { e.preventDefault(); });
+
+    // Track touch start position
+    el.addEventListener('touchstart', e => {
+      _touchStartY = e.touches[0].clientY;
+      _touchStartX = e.touches[0].clientX;
+      _touchMoved = false;
+      e.stopPropagation();
+    }, {passive: true});
+
+    // Detect if finger moved (scrolling vs tapping)
+    el.addEventListener('touchmove', e => {
+      const dy = Math.abs(e.touches[0].clientY - _touchStartY);
+      const dx = Math.abs(e.touches[0].clientX - _touchStartX);
+      if (dy > 8 || dx > 8) _touchMoved = true;
+    }, {passive: true});
+
+    // On touchend: if not scrolled, treat as tap → find closest sku-opt
+    el.addEventListener('touchend', e => {
+      e.stopPropagation();
+      if (_touchMoved) return; // was a scroll, ignore
+      const opt = e.target.closest('.sku-opt');
+      if (opt) {
+        e.preventDefault();
+        const {oid, idx, sku} = opt.dataset;
+        fillSku(oid, parseInt(idx), sku);
+      }
+    }, {passive: false});
+
+    // Desktop click handler
+    el.addEventListener('mousedown', e => e.preventDefault());
+    el.addEventListener('click', e => {
+      const opt = e.target.closest('.sku-opt');
+      if (opt) {
+        const {oid, idx, sku} = opt.dataset;
+        fillSku(oid, parseInt(idx), sku);
+      }
+    });
+
     document.body.appendChild(el);
   }
   return el;
@@ -863,32 +900,32 @@ function positionDropdown(inputEl) {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
 
-  // Width: at least 300px, at most full screen minus margins
+  // Width: fill available width on mobile
   const width = Math.min(Math.max(300, r.width), vw - 16);
   let left = r.left;
   if (left + width > vw - 8) left = Math.max(8, vw - width - 8);
 
-  // On mobile, use a large fixed height and position from bottom if needed
-  const topGap = r.bottom + 4;
-  const bottomGap = vh - r.top + 4;
-  const spaceBelow = vh - topGap - 8;
-  const spaceAbove = r.top - 8;
+  const spaceBelow = vh - r.bottom - 12;
+  const spaceAbove = r.top - 12;
 
-  // Prefer below, but cap height to available space (min 200px)
   let finalTop, maxHeight;
-  if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
-    finalTop = topGap;
-    maxHeight = Math.max(200, Math.min(320, spaceBelow));
+  if (spaceBelow >= 180 || spaceBelow >= spaceAbove) {
+    finalTop = r.bottom + 4;
+    maxHeight = Math.max(180, Math.min(340, spaceBelow));
   } else {
-    maxHeight = Math.max(200, Math.min(320, spaceAbove));
+    maxHeight = Math.max(180, Math.min(340, spaceAbove));
     finalTop = r.top - maxHeight - 4;
   }
 
-  dd.style.left   = left + 'px';
-  dd.style.top    = finalTop + 'px';
-  dd.style.width  = width + 'px';
+  dd.style.left      = left + 'px';
+  dd.style.top       = finalTop + 'px';
+  dd.style.width     = width + 'px';
   dd.style.maxHeight = maxHeight + 'px';
-  dd.style.display = 'block';
+  // Add padding at bottom so last item is fully reachable
+  dd.style.paddingBottom = '12px';
+  dd.style.display   = 'block';
+  // Reset scroll to top when reopening
+  dd.scrollTop = 0;
 }
 
 function openSkuDropdown(oid, idx, inputEl) {
