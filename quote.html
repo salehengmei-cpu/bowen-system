@@ -99,12 +99,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .qp-total-row.grand{font-size:16px;font-weight:700;color:var(--brand);background:var(--brand-light)}
 
 @media(max-width:680px){
-  .header-grid,.dim-row{grid-template-columns:1fr}
-  .prod-row,.prod-col-hd{grid-template-columns:1.6fr .6fr .7fr .7fr}
-  .prod-row .width-col,.prod-row .qty-col{display:none}
-  .prod-col-hd .width-hd,.prod-col-hd .qty-hd{display:none}
-  .labour-row,.labour-col-hd{grid-template-columns:1.6fr .7fr .7fr}
-  .labour-row .rate-col,.labour-col-hd .rate-hd{display:none}
+  .header-grid{grid-template-columns:1fr}
+  .dim-row{grid-template-columns:1fr 1fr}
+  .prod-col-hd,.labour-col-hd{display:none}
+  .prod-row{
+    grid-template-columns:1fr;
+    gap:4px;padding:10px 0;
+    position:relative;
+  }
+  .prod-row .prod-name{font-size:12px;font-weight:500;margin-bottom:4px}
+  .prod-row .prod-price{display:none}
+  .prod-row .width-col,.prod-row .qty-col{display:block!important}
+  .prod-row-inputs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .line-total{text-align:left!important;font-size:13px}
+  .labour-row{grid-template-columns:1fr;gap:4px;padding:10px 0}
+  .labour-row .rate-col{display:block!important}
+  .labour-row-inputs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .num-input{padding:8px 6px;font-size:14px;min-height:40px}
+  .section-body{padding:10px 12px}
 }
 @media print{
   .topnav,.sum-actions,.print-close{display:none}
@@ -139,11 +151,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
     <div class="dim-row">
       <div class="field">
         <label>長度 Length (ft)</label>
-        <input id="length" type="number" min="0" step="0.5" placeholder="0" oninput="calcAll()">
+        <input id="length" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="calcAll()">
       </div>
       <div class="field">
         <label>寬度 Width (ft)</label>
-        <input id="width" type="number" min="0" step="0.5" placeholder="0" oninput="calcAll()">
+        <input id="width" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="calcAll()">
       </div>
       <div class="sqft-display" id="sqft-display">— sq ft</div>
     </div>
@@ -360,31 +372,46 @@ function buildRows(){
     document.getElementById('rows-'+g).innerHTML = prods.map(p => {
       const isPanel = p.type==='panel';
       const isLinear = p.type==='linear';
-      const isUnit = p.type==='unit';
+      const showLen = isPanel || isLinear;
       return `<div class="prod-row">
-        <div class="prod-name"><div class="en">${p.en}</div><div class="zh">${p.zh}</div></div>
+        <div class="prod-name">
+          <div class="en">${p.en}</div>
+          <div class="zh">${p.zh}</div>
+        </div>
         <div class="prod-price">
-          <input class="num-input" type="number" min="0" step="0.01" id="price_${p.id}" value="${p.price}" oninput="calcAll()">
+          <input class="num-input" type="number" inputmode="decimal" min="0" step="0.01"
+            id="price_${p.id}" value="${p.price}" oninput="calcAll()">
         </div>
         <div class="width-col">
-          <input class="num-input" type="number" min="0" step="0.5" id="len_${p.id}" value="" placeholder="${isPanel?'ft':'ft'}" oninput="calcAll()">
+          <input class="num-input" type="number" inputmode="decimal" min="0" step="0.5"
+            id="len_${p.id}" value="" placeholder="${showLen?'長度 ft':''}"
+            ${!showLen?'disabled style="visibility:hidden"':''}
+            oninput="calcAll()">
         </div>
         <div class="qty-col">
-          <input class="num-input" type="number" min="0" step="1" id="qty_${p.id}" value="" placeholder="qty" oninput="calcAll()">
+          <input class="num-input" type="number" inputmode="numeric" min="0" step="1"
+            id="qty_${p.id}" value="" placeholder="數量 qty" oninput="calcAll()">
         </div>
         <div class="line-total zero" id="total_ft_${p.id}">—</div>
         <div class="line-total zero" id="total_${p.id}">—</div>
       </div>`;
     }).join('');
   });
-  // Labour rows
+
   document.getElementById('rows-labour').innerHTML = LABOUR.map(l => `
     <div class="labour-row">
-      <div class="prod-name"><div class="en">${l.en}</div><div class="zh">${l.zh}</div></div>
-      <div class="rate-col">
-        <input class="num-input" type="number" min="0" step="0.5" id="lprice_${l.id}" value="${l.price}" oninput="calcAll()">
+      <div class="prod-name">
+        <div class="en">${l.en}</div>
+        <div class="zh">${l.zh}</div>
       </div>
-      <div><input class="num-input" type="number" min="0" step="0.5" id="lqty_${l.id}" value="" placeholder="qty" oninput="calcAll()"></div>
+      <div class="rate-col">
+        <input class="num-input" type="number" inputmode="decimal" min="0" step="0.5"
+          id="lprice_${l.id}" value="${l.price}" oninput="calcAll()">
+      </div>
+      <div>
+        <input class="num-input" type="number" inputmode="decimal" min="0" step="0.5"
+          id="lqty_${l.id}" value="" placeholder="數量 qty" oninput="calcAll()">
+      </div>
       <div class="line-total zero" id="ltotal_${l.id}">—</div>
     </div>`).join('');
 }
@@ -581,7 +608,7 @@ buildRows();
 document.getElementById('date').value = new Date().toLocaleDateString('en-CA');
 const saved = safeGet('bpc_current_quote');
 if (saved) { try { loadState(JSON.parse(saved)); } catch(e) { calcAll(); } } else { calcAll(); }
-// Auto-save on input
+// Auto-save on input — wrapped in try/catch so errors never block typing
 document.addEventListener('input', () => {
   try { safeSet('bpc_current_quote', JSON.stringify(getState())); } catch(e) {}
 });
