@@ -246,6 +246,8 @@ const PANELS = [
 const BEAMS = [
   {id:'3in1',    en:'3" in 1 (No I Beam)',zh:'3合1(無工字梁)', price:7.5},
   {id:'4in1',    en:'4" 4 in 1',          zh:'4吋 4合1',   price:12.0},
+  {id:'4in1_blk',en:'4" 4 in 1 Black',    zh:'4吋 4合1 黑', price:12.0},
+  {id:'4in1_wht',en:'4" 4 in 1 White',    zh:'4吋 4合1 白', price:12.0},
   {id:'6in1',    en:'6" 4 in 1',          zh:'6吋 4合1',   price:20.5},
   {id:'4ibeam',  en:'4" Double I Beam',   zh:'4吋工字梁',  price:5.0},
   {id:'6ibeam',  en:'6" Double I Beam',   zh:'6吋工字梁',  price:13.5},
@@ -320,7 +322,51 @@ function getSqft(){
 function onDimChange(){
   const sqft=getSqft();
   document.getElementById('sqft-box').textContent = sqft>0?sqft+' sq ft':'— sq ft';
+  autoBuildStructure();
   calcAll();
+}
+
+// Post count: both ends + every 12ft between = ceil(length/12) + 1
+function calcPosts(length){
+  if(length<=0) return 0;
+  return Math.ceil(length/12) + 1;
+}
+
+// Auto-add the basic patio structure (4in1 beam + posts) based on patio Length.
+// Non-destructive: only creates the auto rows once, then keeps them in sync with Length.
+function autoBuildStructure(){
+  const length = parseFloat(document.getElementById('len').value)||0;
+  if(length<=0) return;
+
+  // ── 4in1 beam row (auto) ──
+  // Find an existing auto-4in1 row (flagged with r.auto==='4in1')
+  let beamRow = rows.beams.find(r=>r.auto==='4in1');
+  if(!beamRow){
+    // Only auto-create if user hasn't already manually added a 4in1 variant
+    const hasManual4in1 = rows.beams.some(r=>['4in1','4in1_blk','4in1_wht'].includes(r.pid));
+    if(!hasManual4in1){
+      beamRow = {pid:'4in1', price:12.0, len:length, qty:1, total:0, ftotal:0, auto:'4in1'};
+      rows.beams.unshift(beamRow);
+    }
+  } else {
+    // keep length in sync with patio length (unless user changed it manually)
+    if(!beamRow.lenEdited) beamRow.len = length;
+  }
+
+  // ── Posts row (auto) ──
+  const postCount = calcPosts(length);
+  let postRow = rows.beams.find(r=>r.auto==='post');
+  if(!postRow){
+    const hasManualPost = rows.beams.some(r=>r.pid==='post' && r.auto!=='post');
+    if(!hasManualPost){
+      // Post default length 10ft (typical) — user can adjust; qty = post count
+      postRow = {pid:'post', price:3.3, len:10, qty:postCount, total:0, ftotal:0, auto:'post'};
+      rows.beams.push(postRow);
+    }
+  } else {
+    // keep post count in sync with length (unless user manually changed qty)
+    if(!postRow.qtyEdited) postRow.qty = postCount;
+  }
 }
 function toggleSec(name){
   const b=document.getElementById('body-'+name);
@@ -356,7 +402,7 @@ function renderRows(){
 
   // BEAMS: product | price | length(ft) | qty | total_ft | total | del
   document.getElementById('rows-beams').innerHTML = rows.beams.map((r,i)=>`
-    <div class="item-row beam-row">
+    <div class="item-row beam-row"${r.auto?' style="background:#fefaf3"':''}>
       ${makeSelect(BEAMS, r.pid, `onProdChange('beams',${i},this)`)}
       <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$/ft" oninput="onValChange('beams',${i},'price',this.value)">
       <input class="ni" type="number" inputmode="decimal" min="0" step="0.5" value="${r.len||''}" placeholder="ft" oninput="onValChange('beams',${i},'len',this.value)">
@@ -364,7 +410,7 @@ function renderRows(){
       <span class="line-amt ${r.ftotal>0?'':'zero'}" id="bft-${i}">${r.ftotal>0?r.ftotal+' ft':'—'}</span>
       <span class="line-amt ${r.total>0?'':'zero'}" id="btot-${i}">${fmtShort(r.total||0)}</span>
       <button class="del-btn" onclick="delRow('beams',${i})">✕</button>
-    </div>`).join('');
+    </div>${r.auto?`<div style="font-size:10px;color:var(--amber);padding:0 0 4px 2px;margin-top:-2px">⚡ 自動${r.auto==='4in1'?' 4in1 (跟隨長度)':' 柱 (每12ft一支+兩端)'}</div>`:''}`).join('');
 
   // HARDWARE: product | price | qty | total | del
   document.getElementById('rows-hardware').innerHTML = rows.hardware.map((r,i)=>`
@@ -422,7 +468,13 @@ function onLabChange(i, sel){
   calcAll();
 }
 function onValChange(section, i, field, val){
-  rows[section][i][field] = parseFloat(val)||0;
+  const row = rows[section][i];
+  row[field] = parseFloat(val)||0;
+  // If user manually edits an auto row's length or qty, stop auto-syncing that field
+  if(row.auto){
+    if(field==='len') row.lenEdited = true;
+    if(field==='qty') row.qtyEdited = true;
+  }
   calcAll();
 }
 
