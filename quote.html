@@ -7,121 +7,120 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --brand:#7B5E3A;--brand-light:#F5EFE6;--brand-mid:#C4A882;
+  --brand:#7B5E3A;--brand-light:#F5EFE6;--brand-mid:#C4A882;--brand-dark:#5C4428;
   --bg:#F7F5F2;--bg2:#fff;--bg3:#EFECE8;
   --border:#E3DDD3;--border2:#D0C8BC;
   --text:#2B2520;--text2:#6B6158;--text3:#9C8F84;
   --green:#16a34a;--green-bg:#dcfce7;
   --red:#dc2626;--red-bg:#fee2e2;
+  --amber:#d97706;--amber-bg:#fef3c7;
+  --blue:#2563eb;
   --radius:10px;--radius-sm:6px;
-  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.1)
+  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 6px 20px rgba(0,0,0,.12)
 }
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;font-size:14px;color:var(--text);background:var(--bg);min-height:100vh}
+
+/* Nav */
 .topnav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--brand);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .nav-logo{font-size:15px;font-weight:700}
-.nav-links{display:flex;gap:4px;flex-wrap:wrap}
+.nav-links{display:flex;gap:4px}
 .nav-link{padding:5px 10px;border-radius:6px;color:rgba(255,255,255,.8);font-size:12px;text-decoration:none}
 .nav-link:hover,.nav-link.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
-.page{max-width:960px;margin:0 auto;padding:20px}
 
-/* Header section */
-.quote-header{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)}
-.quote-header h2{font-size:18px;font-weight:700;color:var(--brand);margin-bottom:14px}
-.header-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.field{display:flex;flex-direction:column;gap:4px}
-.field label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
-.field input,.field textarea{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text);background:var(--bg2);font-family:inherit}
-.field input:focus,.field textarea:focus{outline:none;border-color:var(--brand-mid)}
-.dim-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
-.sqft-display{display:flex;align-items:center;justify-content:center;background:var(--brand-light);border:1px solid var(--brand-mid);border-radius:var(--radius-sm);font-size:18px;font-weight:700;color:var(--brand)}
+.page{max-width:900px;margin:0 auto;padding:16px}
 
-/* Section cards */
-.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
-.section-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg3);cursor:pointer;user-select:none}
-.section-hd h3{font-size:14px;font-weight:600}
-.section-hd .toggle{font-size:12px;color:var(--text3)}
-.section-body{padding:12px 16px}
+/* Header card */
+.hdr-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.hdr-card h2{font-size:17px;font-weight:700;color:var(--brand);margin-bottom:12px}
+.hdr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hdr-dims{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-top:10px;align-items:end}
+.field label{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.field input,.field select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text);background:var(--bg2)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--brand-mid)}
+.sqft-box{background:var(--brand-light);border:1px solid var(--brand-mid);border-radius:var(--radius-sm);padding:8px 14px;text-align:center;font-size:18px;font-weight:700;color:var(--brand);white-space:nowrap}
 
-/* Product rows */
-.prod-row{display:grid;grid-template-columns:1.8fr .6fr .7fr .7fr .7fr .7fr;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
-.prod-row:last-child{border-bottom:none}
-.prod-col-hd{display:grid;grid-template-columns:1.8fr .6fr .7fr .7fr .7fr .7fr;gap:8px;padding:4px 0 8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);margin-bottom:4px}
-.prod-name{font-size:12px;line-height:1.3}
-.prod-name .en{color:var(--text);font-weight:500}
-.prod-name .zh{color:var(--text3);font-size:10px}
-.prod-price{font-size:12px;color:var(--text3)}
-.num-input{width:100%;padding:5px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;color:var(--text);background:var(--bg2)}
-.num-input:focus{outline:none;border-color:var(--brand-mid)}
-.num-input:disabled{background:var(--bg3);color:var(--text3)}
-.line-total{font-size:12px;font-weight:600;color:var(--brand);text-align:right}
-.line-total.zero{color:var(--text3);font-weight:400}
+/* Section */
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:var(--bg3);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.sec-hd h3{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.sec-hd .sec-total{font-size:13px;font-weight:700;color:var(--brand)}
+.sec-body{padding:10px 14px}
+.sec-body.hidden{display:none}
 
-/* Labour rows */
-.labour-row{display:grid;grid-template-columns:1.8fr .7fr .7fr .7fr;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)}
-.labour-row:last-child{border-bottom:none}
-.labour-col-hd{display:grid;grid-template-columns:1.8fr .7fr .7fr .7fr;gap:8px;padding:4px 0 8px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);margin-bottom:4px}
+/* Table rows */
+.tbl-hd{display:grid;gap:6px;padding:4px 0 6px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);margin-bottom:4px}
+.item-row{display:grid;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
+.item-row:last-child{border-bottom:none}
+.ni{width:100%;padding:6px 7px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;color:var(--text);background:var(--bg2);min-height:34px}
+.ni:focus{outline:none;border-color:var(--brand-mid)}
+.ni.price-input{color:var(--blue);font-weight:500}
+.line-amt{font-size:12px;font-weight:600;color:var(--brand);text-align:right;padding:0 2px}
+.line-amt.zero{color:var(--text3);font-weight:400}
+.del-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:2px 4px;border-radius:4px}
+.del-btn:hover{color:var(--red);background:var(--red-bg)}
+.add-row-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:1px dashed var(--border2);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;color:var(--text3);margin-top:6px}
+.add-row-btn:hover{background:var(--brand-light);color:var(--brand);border-color:var(--brand-mid)}
 
-/* Summary */
-.summary{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow-md)}
-.summary h3{font-size:15px;font-weight:700;margin-bottom:14px}
-.sum-line{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
-.sum-line:last-child{border-bottom:none}
-.sum-line.total{font-size:16px;font-weight:700;padding-top:12px;margin-top:4px;border-top:2px solid var(--border2);border-bottom:none;color:var(--brand)}
-.sum-line.sub{color:var(--text3);font-size:12px}
-.sum-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+/* Panel cols: product select | price | length | qty(strips) | sqft | total */
+.panel-hd{grid-template-columns:2fr .7fr .7fr .7fr .7fr .9fr 28px}
+.panel-row{grid-template-columns:2fr .7fr .7fr .7fr .7fr .9fr 28px}
+/* Beam cols: product select | price | length | qty | total_ft | total */
+.beam-hd{grid-template-columns:2fr .7fr .7fr .7fr .7fr .9fr 28px}
+.beam-row{grid-template-columns:2fr .7fr .7fr .7fr .7fr .9fr 28px}
+/* Unit cols: product select | price | qty | total */
+.unit-hd{grid-template-columns:2.5fr .8fr .8fr 1fr 28px}
+.unit-row{grid-template-columns:2.5fr .8fr .8fr 1fr 28px}
+/* Labour: item select | rate | qty/sqft | total */
+.lab-hd{grid-template-columns:2.5fr .8fr .8fr 1fr 28px}
+.lab-row{grid-template-columns:2.5fr .8fr .8fr 1fr 28px}
+
+/* Totals */
+.totals-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.totals-card h3{font-size:14px;font-weight:700;margin-bottom:12px}
+.tot-line{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.tot-line:last-child{border-bottom:none}
+.tot-line.grand{font-size:17px;font-weight:700;color:var(--brand);padding-top:10px;margin-top:4px;border-top:2px solid var(--border2);border-bottom:none}
+.tot-line.sub{font-size:12px;color:var(--text3)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:9px 16px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit}
-.btn-primary{background:var(--brand);color:#fff}
-.btn-primary:hover{opacity:.9}
-.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}
-.btn-outline:hover{background:var(--bg3)}
-.btn-green{background:var(--green);color:#fff}
-.btn-green:hover{opacity:.9}
+.btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{opacity:.9}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{opacity:.9}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--text)}.btn-outline:hover{background:var(--bg3)}
 
 /* Print overlay */
-.print-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;padding:20px}
-.print-overlay.show{display:flex}
-.print-box{background:#fff;border-radius:var(--radius);padding:28px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-md)}
-.print-close{float:right;background:none;border:none;cursor:pointer;font-size:20px;color:var(--text3)}
-
-/* Quote preview */
-.qp-header{text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid var(--brand)}
-.qp-company{font-size:22px;font-weight:700;color:var(--brand)}
-.qp-sub{font-size:13px;color:var(--text3);margin-top:3px}
-.qp-info{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;font-size:13px}
-.qp-label{color:var(--text3);font-size:11px}
-.qp-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
-.qp-table th{background:var(--brand);color:#fff;padding:7px 10px;text-align:left;font-size:11px}
-.qp-table td{padding:7px 10px;border-bottom:1px solid var(--border)}
-.qp-table tr:nth-child(even) td{background:#faf8f5}
-.qp-table .amt{text-align:right;font-weight:500}
-.qp-totals{margin-top:10px;border-top:2px solid var(--brand)}
-.qp-total-row{display:flex;justify-content:space-between;padding:6px 10px;font-size:13px;border-bottom:1px solid var(--border)}
-.qp-total-row.grand{font-size:16px;font-weight:700;color:var(--brand);background:var(--brand-light)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;align-items:center;justify-content:center;padding:16px}
+.overlay.show{display:flex}
+.overlay-box{background:#fff;border-radius:var(--radius);padding:24px;max-width:680px;width:100%;max-height:92vh;overflow-y:auto}
+.overlay-box h3{font-size:16px;font-weight:700;margin-bottom:14px;color:var(--brand)}
+.qp-co{font-size:22px;font-weight:700;color:var(--brand);text-align:center}
+.qp-sub{font-size:12px;color:var(--text3);text-align:center;margin-bottom:14px}
+.qp-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;font-size:13px}
+.qp-label{font-size:10px;color:var(--text3);text-transform:uppercase}
+.qp-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+.qp-tbl th{background:var(--brand);color:#fff;padding:6px 10px;text-align:left;font-size:11px}
+.qp-tbl td{padding:6px 10px;border-bottom:1px solid var(--border)}
+.qp-tbl tr:nth-child(even) td{background:#faf8f5}
+.qp-tbl .r{text-align:right}
+.qp-tot{margin-top:10px;border-top:2px solid var(--brand)}
+.qp-tot-row{display:flex;justify-content:space-between;padding:6px 10px;font-size:13px;border-bottom:1px solid var(--border)}
+.qp-tot-row.grand{font-size:16px;font-weight:700;color:var(--brand);background:var(--brand-light)}
+.overlay-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 
 @media(max-width:680px){
-  .header-grid{grid-template-columns:1fr}
-  .dim-row{grid-template-columns:1fr 1fr}
-  .prod-col-hd,.labour-col-hd{display:none}
-  .prod-row{
-    grid-template-columns:1fr;
-    gap:4px;padding:10px 0;
-    position:relative;
-  }
-  .prod-row .prod-name{font-size:12px;font-weight:500;margin-bottom:4px}
-  .prod-row .prod-price{display:none}
-  .prod-row .width-col,.prod-row .qty-col{display:block!important}
-  .prod-row-inputs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-  .line-total{text-align:left!important;font-size:13px}
-  .labour-row{grid-template-columns:1fr;gap:4px;padding:10px 0}
-  .labour-row .rate-col{display:block!important}
-  .labour-row-inputs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-  .num-input{padding:8px 6px;font-size:14px;min-height:40px}
-  .section-body{padding:10px 12px}
+  .hdr-grid{grid-template-columns:1fr}
+  .hdr-dims{grid-template-columns:1fr 1fr}
+  .panel-hd,.beam-hd{display:none}
+  .panel-row,.beam-row{grid-template-columns:2fr .7fr .7fr .9fr 28px}
+  .panel-row .sqft-col{display:none}
+  .unit-hd,.lab-hd{display:none}
+  .unit-row,.lab-row{grid-template-columns:2fr .8fr .8fr 1fr 28px}
+  .ni{font-size:13px;padding:7px 6px;min-height:38px}
+  .qp-info{grid-template-columns:1fr}
 }
 @media print{
-  .topnav,.sum-actions,.print-close{display:none}
-  .print-overlay{display:flex!important;position:static;background:none;padding:0}
-  .print-box{box-shadow:none;max-height:none;padding:0}
+  .topnav,.actions,.overlay-actions,.del-btn,.add-row-btn{display:none!important}
+  .overlay{display:flex!important;position:static;background:none;padding:0}
+  .overlay-box{max-height:none;box-shadow:none;padding:0}
 }
 </style>
 </head>
@@ -136,482 +135,463 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 </nav>
 
 <div class="page">
-  <div class="quote-header">
-    <h2>💰 報價計算器 Quote Calculator</h2>
-    <div class="header-grid">
-      <div class="field">
-        <label>客戶 / Jobsite</label>
-        <input id="jobsite" type="text" placeholder="客戶名稱 / 地址 / 電話" oninput="calcAll()">
-      </div>
-      <div class="field">
-        <label>日期 Date</label>
-        <input id="date" type="date" oninput="calcAll()">
-      </div>
-    </div>
-    <div class="dim-row">
-      <div class="field">
-        <label>長度 Length (ft)</label>
-        <input id="length" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="calcAll()">
-      </div>
-      <div class="field">
-        <label>寬度 Width (ft)</label>
-        <input id="width" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="calcAll()">
-      </div>
-      <div class="sqft-display" id="sqft-display">— sq ft</div>
-    </div>
-  </div>
 
-  <!-- Panels section -->
-  <div class="section" id="sec-panels">
-    <div class="section-hd" onclick="toggleSection('panels')">
-      <h3>🪟 面板 Panels / Glass</h3>
-      <span class="toggle" id="toggle-panels">▼</span>
-    </div>
-    <div class="section-body" id="body-panels">
-      <div class="prod-col-hd">
-        <span>產品 Product</span><span>單價 $/ft</span>
-        <span class="width-hd">尺數 Length</span><span class="qty-hd">數量 Qty</span>
-        <span>總尺數 Total ft</span><span>小計 Total</span>
-      </div>
-      <div id="rows-panels"></div>
-    </div>
+<!-- Header -->
+<div class="hdr-card">
+  <h2>💰 報價計算器 Quote Calculator</h2>
+  <div class="hdr-grid">
+    <div class="field"><label>客戶 / Jobsite</label><input id="jobsite" type="text" placeholder="客戶名稱 / 地址 / 電話"></div>
+    <div class="field"><label>日期 Date</label><input id="date" type="date"></div>
   </div>
-
-  <!-- Beams section -->
-  <div class="section" id="sec-beams">
-    <div class="section-hd" onclick="toggleSection('beams')">
-      <h3>🔩 型材 Profiles / Beams</h3>
-      <span class="toggle" id="toggle-beams">▼</span>
-    </div>
-    <div class="section-body" id="body-beams">
-      <div class="prod-col-hd">
-        <span>產品 Product</span><span>單價 $/ft</span>
-        <span class="width-hd">尺數 Length</span><span class="qty-hd">數量 Qty</span>
-        <span>總尺數</span><span>小計 Total</span>
-      </div>
-      <div id="rows-beams"></div>
-    </div>
-  </div>
-
-  <!-- Drainage section -->
-  <div class="section" id="sec-drainage">
-    <div class="section-hd" onclick="toggleSection('drainage')">
-      <h3>🌧 排水 Drainage / Gutter</h3>
-      <span class="toggle" id="toggle-drainage">▼</span>
-    </div>
-    <div class="section-body" id="body-drainage">
-      <div class="prod-col-hd">
-        <span>產品 Product</span><span>單價 $</span>
-        <span class="width-hd"></span><span class="qty-hd">數量 Qty</span>
-        <span></span><span>小計 Total</span>
-      </div>
-      <div id="rows-drainage"></div>
-    </div>
-  </div>
-
-  <!-- Hardware section -->
-  <div class="section" id="sec-hardware">
-    <div class="section-hd" onclick="toggleSection('hardware')">
-      <h3>🔧 五金 Hardware / Sealants</h3>
-      <span class="toggle" id="toggle-hardware">▼</span>
-    </div>
-    <div class="section-body" id="body-hardware">
-      <div class="prod-col-hd">
-        <span>產品 Product</span><span>單價 $</span>
-        <span class="width-hd"></span><span class="qty-hd">數量 Qty</span>
-        <span></span><span>小計 Total</span>
-      </div>
-      <div id="rows-hardware"></div>
-    </div>
-  </div>
-
-  <!-- Sealants section -->
-  <div class="section" id="sec-sealants">
-    <div class="section-hd" onclick="toggleSection('sealants')">
-      <h3>🧴 密封膠 Sealants</h3>
-      <span class="toggle" id="toggle-sealants">▼</span>
-    </div>
-    <div class="section-body" id="body-sealants">
-      <div class="prod-col-hd">
-        <span>產品 Product</span><span>單價 $</span>
-        <span class="width-hd"></span><span class="qty-hd">數量 Qty</span>
-        <span></span><span>小計 Total</span>
-      </div>
-      <div id="rows-sealants"></div>
-    </div>
-  </div>
-
-  <!-- Labour section -->
-  <div class="section" id="sec-labour">
-    <div class="section-hd" onclick="toggleSection('labour')">
-      <h3>👷 人工 Labour / Travel</h3>
-      <span class="toggle" id="toggle-labour">▼</span>
-    </div>
-    <div class="section-body" id="body-labour">
-      <div class="labour-col-hd">
-        <span>項目 Item</span>
-        <span class="rate-hd">單價 Rate</span>
-        <span>數量 Qty</span><span>小計 Total</span>
-      </div>
-      <div id="rows-labour"></div>
-    </div>
-  </div>
-
-  <!-- Summary -->
-  <div class="summary">
-    <h3>📋 報價總計 Quote Summary</h3>
-    <div class="sum-line"><span>材料小計 Materials Subtotal</span><span id="sum-materials">$0.00</span></div>
-    <div class="sum-line sub"><span>　稅前 Before Tax</span><span id="sum-before-tax">$0.00</span></div>
-    <div class="sum-line sub"><span>　GST/PST (12%)</span><span id="sum-tax">$0.00</span></div>
-    <div class="sum-line"><span>材料含稅 Materials + Tax</span><span id="sum-mat-tax">$0.00</span></div>
-    <div class="sum-line"><span>人工合計 Labour Total</span><span id="sum-labour">$0.00</span></div>
-    <div class="sum-line total"><span>💰 總計 Grand Total</span><span id="sum-grand">$0.00</span></div>
-    <div class="sum-actions">
-      <button class="btn btn-primary" onclick="showPrint()">🖨️ 預覽 / 列印 Print</button>
-      <button class="btn btn-green" onclick="saveQuote()">💾 儲存報價 Save</button>
-      <button class="btn btn-outline" onclick="loadQuotes()">📂 載入 Load</button>
-      <button class="btn btn-outline" onclick="clearAll()">🗑️ 清除 Clear</button>
-    </div>
+  <div class="hdr-dims">
+    <div class="field"><label>長度 Length (ft)</label><input id="len" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="onDimChange()"></div>
+    <div class="field"><label>寬度 Width (ft)</label><input id="wid" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="onDimChange()"></div>
+    <div class="sqft-box" id="sqft-box">— sq ft</div>
   </div>
 </div>
 
+<!-- Panels -->
+<div class="section" id="sec-panels">
+  <div class="sec-hd" onclick="toggleSec('panels')">
+    <h3>🪟 面板 Panels / Glass</h3>
+    <span class="sec-total" id="tot-panels">$0</span>
+  </div>
+  <div class="sec-body" id="body-panels">
+    <div class="tbl-hd panel-hd"><span>產品</span><span>單價$/ft</span><span>長度 ft</span><span>條數 qty</span><span class="sqft-col">總sqft</span><span>小計</span><span></span></div>
+    <div id="rows-panels"></div>
+    <button class="add-row-btn" onclick="addRow('panels')">＋ 加一行</button>
+  </div>
+</div>
+
+<!-- Beams -->
+<div class="section" id="sec-beams">
+  <div class="sec-hd" onclick="toggleSec('beams')">
+    <h3>🔩 型材 Profiles / Beams</h3>
+    <span class="sec-total" id="tot-beams">$0</span>
+  </div>
+  <div class="sec-body" id="body-beams">
+    <div class="tbl-hd beam-hd"><span>產品</span><span>單價$/ft</span><span>長度 ft</span><span>數量 qty</span><span>總尺數</span><span>小計</span><span></span></div>
+    <div id="rows-beams"></div>
+    <button class="add-row-btn" onclick="addRow('beams')">＋ 加一行</button>
+  </div>
+</div>
+
+<!-- Hardware/Unit -->
+<div class="section" id="sec-hardware">
+  <div class="sec-hd" onclick="toggleSec('hardware')">
+    <h3>🔧 五金配件 Hardware / Drainage / Sealants</h3>
+    <span class="sec-total" id="tot-hardware">$0</span>
+  </div>
+  <div class="sec-body" id="body-hardware">
+    <div class="tbl-hd unit-hd"><span>產品</span><span>單價 $</span><span>數量 qty</span><span>小計</span><span></span></div>
+    <div id="rows-hardware"></div>
+    <button class="add-row-btn" onclick="addRow('hardware')">＋ 加一行</button>
+  </div>
+</div>
+
+<!-- Labour -->
+<div class="section" id="sec-labour">
+  <div class="sec-hd" onclick="toggleSec('labour')">
+    <h3>👷 人工 Labour / Travel</h3>
+    <span class="sec-total" id="tot-labour">$0</span>
+  </div>
+  <div class="sec-body" id="body-labour">
+    <div class="tbl-hd lab-hd"><span>項目</span><span>單價 $</span><span>數量/sqft</span><span>小計</span><span></span></div>
+    <div id="rows-labour"></div>
+    <button class="add-row-btn" onclick="addRow('labour')">＋ 加一行</button>
+  </div>
+</div>
+
+<!-- Totals -->
+<div class="totals-card">
+  <h3>📋 報價總計 Quote Summary</h3>
+  <div class="tot-line"><span>材料小計 Materials Subtotal</span><span id="t-mat">$0.00</span></div>
+  <div class="tot-line sub"><span>　GST/PST (12%)</span><span id="t-tax">$0.00</span></div>
+  <div class="tot-line"><span>材料含稅 Materials + Tax</span><span id="t-mat-tax">$0.00</span></div>
+  <div class="tot-line"><span>人工合計 Labour Total</span><span id="t-lab">$0.00</span></div>
+  <div class="tot-line grand"><span>💰 總計 Grand Total</span><span id="t-grand">$0.00</span></div>
+  <div class="actions">
+    <button class="btn btn-primary" onclick="showPrint()">🖨 預覽/列印</button>
+    <button class="btn btn-green" onclick="saveQuote()">💾 儲存</button>
+    <button class="btn btn-outline" onclick="loadQuote()">📂 載入</button>
+    <button class="btn btn-outline" onclick="clearAll()">🗑 清除</button>
+  </div>
+</div>
+
+</div><!-- /page -->
+
 <!-- Print overlay -->
-<div class="print-overlay" id="print-overlay" onclick="closePrint(event)">
-  <div class="print-box" onclick="event.stopPropagation()">
-    <button class="print-close" onclick="closePrint()">✕</button>
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeOverlay()">
+  <div class="overlay-box">
+    <button style="float:right;background:none;border:none;cursor:pointer;font-size:20px;color:#9C8F84" onclick="closeOverlay()">✕</button>
     <div id="print-content"></div>
-    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="closePrint()">關閉</button>
-      <button class="btn btn-primary" onclick="window.print()">🖨️ 列印 Print</button>
+    <div class="overlay-actions">
+      <button class="btn btn-outline" onclick="closeOverlay()">關閉</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨 列印</button>
     </div>
   </div>
 </div>
 
 <script>
-const PRODUCTS = [
-  {id:"black_v",en:"Black V Panel",zh:"黑色V板",price:4.5,width:2,type:"panel",group:"panels"},
-  {id:"alum_v",en:"Aluminum V Panel",zh:"白色V板",price:2.6,width:2,type:"panel",group:"panels"},
-  {id:"rubber",en:"Rubber Board",zh:"胶板",price:3.5,width:2,type:"panel",group:"panels"},
-  {id:"clear_glass",en:"Clear Glass",zh:"清玻璃",price:2.0,width:2,type:"panel",group:"panels"},
-  {id:"dark_glass",en:"Dark Grey Glass",zh:"深灰玻璃",price:2.6,width:2,type:"panel",group:"panels"},
-  {id:"light_glass",en:"Light Grey Glass",zh:"淺灰玻璃",price:2.3,width:2,type:"panel",group:"panels"},
-  {id:"bronze_glass",en:"Bronze Glass",zh:"古銅玻璃",price:7.0,width:2,type:"panel",group:"panels"},
-  {id:"3in1",en:'3" in 1 (No I Beam)',zh:"3合1(無工字梁)",price:7.5,type:"linear",group:"beams"},
-  {id:"4in1",en:'4" 4 in 1',zh:"4吋 4合1",price:12.0,type:"linear",group:"beams"},
-  {id:"6in1",en:'6" 4 in 1',zh:"6吋 4合1",price:20.5,type:"linear",group:"beams"},
-  {id:"4ibeam",en:'4" Double I Beam',zh:"4吋工字梁",price:5.0,type:"linear",group:"beams"},
-  {id:"6ibeam",en:'6" Double I Beam',zh:"6吋工字梁",price:13.5,type:"linear",group:"beams"},
-  {id:"8ibeam",en:'8" Double I Beam',zh:"8吋工字梁",price:20.0,type:"linear",group:"beams"},
-  {id:"sideplate",en:"Side Plate",zh:"側板",price:2.45,type:"linear",group:"beams"},
-  {id:"post",en:"Post 柱",zh:"柱",price:3.3,type:"linear",group:"beams"},
-  {id:"tbar",en:"T Bar",zh:"T型梁",price:3.1,type:"linear",group:"beams"},
-  {id:"gutter",en:"Gutter 水槽",zh:"水槽",price:6.0,type:"unit",group:"drainage"},
-  {id:"hanger",en:"Hanger",zh:"掛鉤",price:5.0,type:"unit",group:"drainage"},
-  {id:"outlet",en:"Poly Outlet 落水口",zh:"落水口(花籃)",price:3.5,type:"unit",group:"drainage"},
-  {id:"sponge",en:"Sponge 海棉",zh:"小海棉",price:1.5,type:"unit",group:"drainage"},
-  {id:"pipe",en:"Pipe 水管",zh:"水管",price:16.0,type:"unit",group:"drainage"},
-  {id:"straps",en:"Pipe Straps",zh:"水管夾",price:1.0,type:"unit",group:"drainage"},
-  {id:"elbow",en:"Elbow 彎頭",zh:"彎頭",price:2.5,type:"unit",group:"drainage"},
-  {id:"gutter_splice",en:"Gutter Splice",zh:"水槽接駁件",price:5.0,type:"unit",group:"drainage"},
-  {id:"tape",en:"Double Tape",zh:"雙面膠",price:7.5,type:"unit",group:"sealants"},
-  {id:"caulk_clear",en:"Caulking Clear",zh:"透明膠",price:11.5,type:"unit",group:"sealants"},
-  {id:"caulk_white",en:"Caulking White 830",zh:"白膠 830",price:11.5,type:"unit",group:"sealants"},
-  {id:"caulk_1010",en:"Caulking 1010",zh:"白膠 1010",price:15.0,type:"unit",group:"sealants"},
-  {id:"caulk_black",en:"Caulking Black",zh:"黑膠 830",price:11.5,type:"unit",group:"sealants"},
-  {id:"post_shoe",en:"Post Shoe",zh:"柱碼",price:2.0,type:"unit",group:"hardware"},
-  {id:"side_shoe",en:"Side Mount Shoe",zh:"側裝柱碼",price:20.0,type:"unit",group:"hardware"},
-  {id:"splice_4",en:'4" I Beam Splice',zh:"4吋工字梁接駁件",price:6.0,type:"unit",group:"hardware"},
-  {id:"splice_6",en:'6" I Beam Splice',zh:"6吋工字梁接駁件",price:8.0,type:"unit",group:"hardware"},
-  {id:"splice_8",en:'8" I Beam Splice',zh:"8吋工字梁接駁件",price:11.0,type:"unit",group:"hardware"},
-  {id:"glass_splice",en:"Glass Splice",zh:"玻璃接駁頭",price:2.8,type:"unit",group:"hardware"},
-  {id:"corner",en:"Small Corner",zh:"包角",price:1.0,type:"unit",group:"hardware"},
-  {id:"screw_58",en:'Screw 5/8"',zh:'螺絲 5/8"',price:0.09,type:"unit",group:"hardware"},
-  {id:"screw_1",en:'Screw 1"',zh:'螺絲 1"',price:0.25,type:"unit",group:"hardware"},
-  {id:"screw_2",en:'Screw 2"',zh:'螺絲 2"',price:0.12,type:"unit",group:"hardware"},
-  {id:"screw_3",en:'Screw 3"',zh:'螺絲 3"',price:0.85,type:"unit",group:"hardware"},
-  {id:"glass_stop",en:"Glass Stop",zh:"玻璃壓條",price:2.0,type:"unit",group:"hardware"},
+// ── Product options ──
+const PANELS = [
+  {id:'blk_v',   en:'Black V Panel',      zh:'黑色V板',    price:4.5},
+  {id:'alm_v',   en:'Aluminum V Panel',   zh:'白色V板',    price:2.6},
+  {id:'rubber',  en:'Rubber Board',       zh:'胶板',       price:3.5},
+  {id:'clr_gl',  en:'Clear Glass',        zh:'清玻璃',     price:2.0},
+  {id:'drk_gl',  en:'Dark Grey Glass',    zh:'深灰玻璃',   price:2.6},
+  {id:'lgt_gl',  en:'Light Grey Glass',   zh:'淺灰玻璃',   price:2.3},
+  {id:'brz_gl',  en:'Bronze Glass',       zh:'古銅玻璃',   price:7.0},
 ];
-const LABOUR = [
-  {id:"labour_day",en:"Labour per Day",zh:"人工(每天)",price:350},
-  {id:"labour_sqft",en:"Labour per Sqft",zh:"人工(每呎)",price:2.8},
-  {id:"glass_install",en:"Extra Glass Install",zh:"走多一次安裝玻璃",price:200},
-  {id:"cement",en:"Cement + Post",zh:"水泥+種柱子",price:50},
-  {id:"remove_gutter",en:"Remove Gutter",zh:"拆卸水槽",price:100},
-  {id:"cut_vpanel",en:"Cut V Panel",zh:"裁V板",price:100},
-  {id:"paint",en:"Paint",zh:"烤油漆費",price:50},
-  {id:"travel_langley",en:"Travel - Langley",zh:"路費(Langley)",price:50},
-  {id:"travel_coquitlam",en:"Travel - Coquitlam",zh:"路費(高貴林)",price:50},
-  {id:"travel_north_van",en:"Travel - North Van",zh:"北溫路費",price:50},
-  {id:"travel_west_van",en:"Travel - West Van",zh:"西溫路費",price:100},
-  {id:"travel_mission",en:"Travel - Mission",zh:"Mission路費",price:300},
-  {id:"travel_chilliwack",en:"Travel - Chilliwack",zh:"Chilliwack路費",price:250},
-  {id:"travel_maple_ridge",en:"Travel - Maple Ridge",zh:"Maple Ridge路費",price:150},
-  {id:"travel_abbotsford",en:"Travel - Abbotsford",zh:"Abbotsford路費",price:150},
+const BEAMS = [
+  {id:'3in1',    en:'3" in 1 (No I Beam)',zh:'3合1(無工字梁)', price:7.5},
+  {id:'4in1',    en:'4" 4 in 1',          zh:'4吋 4合1',   price:12.0},
+  {id:'6in1',    en:'6" 4 in 1',          zh:'6吋 4合1',   price:20.5},
+  {id:'4ibeam',  en:'4" Double I Beam',   zh:'4吋工字梁',  price:5.0},
+  {id:'6ibeam',  en:'6" Double I Beam',   zh:'6吋工字梁',  price:13.5},
+  {id:'8ibeam',  en:'8" Double I Beam',   zh:'8吋工字梁',  price:20.0},
+  {id:'splate',  en:'Side Plate',         zh:'側板',       price:2.45},
+  {id:'post',    en:'Post 柱',            zh:'柱',         price:3.3},
+  {id:'tbar',    en:'T Bar',              zh:'T型梁',      price:3.1},
+];
+const HARDWARE = [
+  {id:'gutter',  en:'Gutter 水槽',         zh:'水槽',        price:6.0},
+  {id:'hanger',  en:'Hanger',              zh:'掛鉤',        price:5.0},
+  {id:'outlet',  en:'Poly Outlet 落水口',  zh:'落水口(花籃)',price:3.5},
+  {id:'sponge',  en:'Sponge 海棉',         zh:'小海棉',      price:1.5},
+  {id:'pipe',    en:'Pipe 水管',           zh:'水管',        price:16.0},
+  {id:'straps',  en:'Pipe Straps',         zh:'水管夾',      price:1.0},
+  {id:'elbow',   en:'Elbow 彎頭',          zh:'彎頭',        price:2.5},
+  {id:'gsplice', en:'Gutter Splice',       zh:'水槽接駁件',  price:5.0},
+  {id:'tape',    en:'Double Tape 雙面膠',  zh:'雙面膠',      price:7.5},
+  {id:'c_clear', en:'Caulking Clear',      zh:'透明膠',      price:11.5},
+  {id:'c_white', en:'Caulking White 830',  zh:'白膠 830',    price:11.5},
+  {id:'c_1010',  en:'Caulking 1010',       zh:'白膠 1010',   price:15.0},
+  {id:'c_black', en:'Caulking Black',      zh:'黑膠 830',    price:11.5},
+  {id:'pshoe',   en:'Post Shoe 柱碼',      zh:'柱碼',        price:2.0},
+  {id:'sshoe',   en:'Side Mount Shoe',     zh:'側裝柱碼',    price:20.0},
+  {id:'sp4',     en:'4" I Beam Splice',    zh:'4吋工字梁接駁件',price:6.0},
+  {id:'sp6',     en:'6" I Beam Splice',    zh:'6吋工字梁接駁件',price:8.0},
+  {id:'sp8',     en:'8" I Beam Splice',    zh:'8吋工字梁接駁件',price:11.0},
+  {id:'glspl',   en:'Glass Splice',        zh:'玻璃接駁頭',  price:2.8},
+  {id:'corner',  en:'Small Corner 包角',   zh:'包角',        price:1.0},
+  {id:'sc58',    en:'Screw 5/8"',          zh:'螺絲 5/8"',   price:0.09},
+  {id:'sc1',     en:'Screw 1"',            zh:'螺絲 1"',     price:0.25},
+  {id:'sc2',     en:'Screw 2"',            zh:'螺絲 2"',     price:0.12},
+  {id:'sc3',     en:'Screw 3"',            zh:'螺絲 3"',     price:0.85},
+  {id:'gstop',   en:'Glass Stop',          zh:'玻璃壓條',    price:2.0},
+  {id:'plug_s',  en:'Rubber Plug (small)', zh:'小胶塞',      price:0.2},
+  {id:'plug_l',  en:'Rubber Plug (large)', zh:'大胶塞',      price:13.0},
+  {id:'dl10',    en:"Double Glazing 10'",  zh:"雙層玻璃 10'",price:240},
+  {id:'tbar_l',  en:'Large T Bar',         zh:'大T BAR',     price:85.0},
+  {id:'dl8',     en:"Double Glazing 8'",   zh:"雙層玻璃 8'", price:192},
+  {id:'dl_tbar', en:'Double Glazing T-Bar',zh:'雙層玻璃T-BAR',price:75},
+  {id:'u_lg',    en:'Large U Channel',     zh:'大分U',       price:35},
+  {id:'u_sm',    en:'Small U Channel',     zh:'細分U',       price:25},
+  {id:'ucap',    en:'U Cap',               zh:'U CAP',       price:42},
+];
+const LABOUR_OPTS = [
+  {id:'lab_day',  en:'Labour (per day)',      zh:'人工(每天)',      price:350, sqft:false},
+  {id:'lab_sqft', en:'Labour (per sqft)',     zh:'人工(每sqft)',    price:2.8,  sqft:true},
+  {id:'lab_glass',en:'Extra Glass Install',   zh:'走多一次安裝玻璃',price:200, sqft:false},
+  {id:'lab_demo', en:'Demolition 拆卸人工',  zh:'拆卸人工',        price:0,   sqft:false},
+  {id:'cement',   en:'Cement + Post Setting', zh:'水泥+種柱子',     price:50,  sqft:false},
+  {id:'cut_v',    en:'Cut V Panel',           zh:'裁V板',           price:100, sqft:false},
+  {id:'paint',    en:'Paint 烤油漆',          zh:'烤油漆費',        price:50,  sqft:false},
+  {id:'tr_lang',  en:'Travel - Langley',      zh:'路費(Langley)',   price:50,  sqft:false},
+  {id:'tr_coq',   en:'Travel - Coquitlam',    zh:'路費(高貴林)',    price:50,  sqft:false},
+  {id:'tr_nvan',  en:'Travel - North Van',    zh:'北溫路費',        price:50,  sqft:false},
+  {id:'tr_wvan',  en:'Travel - West Van',     zh:'西溫路費',        price:100, sqft:false},
+  {id:'tr_miss',  en:'Travel - Mission',      zh:'Mission路費',     price:300, sqft:false},
+  {id:'tr_chil',  en:'Travel - Chilliwack',   zh:'Chilliwack路費',  price:250, sqft:false},
+  {id:'tr_mr',    en:'Travel - Maple Ridge',  zh:'Maple Ridge路費', price:150, sqft:false},
+  {id:'tr_abbo',  en:'Travel - Abbotsford',   zh:'Abbotsford路費',  price:150, sqft:false},
+  {id:'rm_gut',   en:'Remove Gutter',         zh:'拆卸水槽',        price:100, sqft:false},
 ];
 
-const TAX_RATE = 0.12;
-let collapsed = {};
+function sGet(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch(e){return d;}}
+function sSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 
-function safeGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
-function safeSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
-
-function $v(id){return parseFloat(document.getElementById(id)?.value)||0;}
-function $s(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
-function fmt(n){return '$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
-
-function toggleSection(name){
-  collapsed[name] = !collapsed[name];
-  document.getElementById('body-'+name).style.display = collapsed[name]?'none':'block';
-  document.getElementById('toggle-'+name).textContent = collapsed[name]?'▶':'▼';
+function getSqft(){
+  const l=parseFloat(document.getElementById('len').value)||0;
+  const w=parseFloat(document.getElementById('wid').value)||0;
+  return l*w;
+}
+function onDimChange(){
+  const sqft=getSqft();
+  document.getElementById('sqft-box').textContent = sqft>0?sqft+' sq ft':'— sq ft';
+  calcAll();
+}
+function toggleSec(name){
+  const b=document.getElementById('body-'+name);
+  b.classList.toggle('hidden');
 }
 
-function buildRows(){
-  const groups = ['panels','beams','drainage','hardware','sealants'];
-  groups.forEach(g => {
-    const prods = PRODUCTS.filter(p=>p.group===g);
-    document.getElementById('rows-'+g).innerHTML = prods.map(p => {
-      const isPanel = p.type==='panel';
-      const isLinear = p.type==='linear';
-      const showLen = isPanel || isLinear;
-      return `<div class="prod-row">
-        <div class="prod-name">
-          <div class="en">${p.en}</div>
-          <div class="zh">${p.zh}</div>
-        </div>
-        <div class="prod-price">
-          <input class="num-input" type="number" inputmode="decimal" min="0" step="0.01"
-            id="price_${p.id}" value="${p.price}" oninput="calcAll()">
-        </div>
-        <div class="width-col">
-          <input class="num-input" type="number" inputmode="decimal" min="0" step="0.5"
-            id="len_${p.id}" value="" placeholder="${showLen?'長度 ft':''}"
-            ${!showLen?'disabled style="visibility:hidden"':''}
-            oninput="calcAll()">
-        </div>
-        <div class="qty-col">
-          <input class="num-input" type="number" inputmode="numeric" min="0" step="1"
-            id="qty_${p.id}" value="" placeholder="數量 qty" oninput="calcAll()">
-        </div>
-        <div class="line-total zero" id="total_ft_${p.id}">—</div>
-        <div class="line-total zero" id="total_${p.id}">—</div>
-      </div>`;
-    }).join('');
-  });
+function fmt(n){return '$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function fmtShort(n){return n>0?'$'+n.toFixed(2):'—';}
 
-  document.getElementById('rows-labour').innerHTML = LABOUR.map(l => `
-    <div class="labour-row">
-      <div class="prod-name">
-        <div class="en">${l.en}</div>
-        <div class="zh">${l.zh}</div>
-      </div>
-      <div class="rate-col">
-        <input class="num-input" type="number" inputmode="decimal" min="0" step="0.5"
-          id="lprice_${l.id}" value="${l.price}" oninput="calcAll()">
-      </div>
-      <div>
-        <input class="num-input" type="number" inputmode="decimal" min="0" step="0.5"
-          id="lqty_${l.id}" value="" placeholder="數量 qty" oninput="calcAll()">
-      </div>
-      <div class="line-total zero" id="ltotal_${l.id}">—</div>
+// ── Row management ──
+// rows[section] = [{product_id, price, len, qty}]
+let rows = {panels:[], beams:[], hardware:[], labour:[]};
+
+function makeSelect(opts, selectedId, onchange){
+  return `<select class="ni" onchange="${onchange}" style="text-align:left;font-size:11px;">
+    <option value="">-- 選擇產品 --</option>
+    ${opts.map(o=>`<option value="${o.id}" ${o.id===selectedId?'selected':''} data-price="${o.price}" data-sqft="${o.sqft||false}">${o.en} ${o.zh}</option>`).join('')}
+  </select>`;
+}
+
+function renderRows(){
+  // PANELS: product | price | length(ft) | qty(strips) | sqft | total | del
+  document.getElementById('rows-panels').innerHTML = rows.panels.map((r,i)=>`
+    <div class="item-row panel-row">
+      ${makeSelect(PANELS, r.pid, `onProdChange('panels',${i},this)`)}
+      <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$/ft" oninput="onValChange('panels',${i},'price',this.value)">
+      <input class="ni" type="number" inputmode="decimal" min="0" step="0.5" value="${r.len||''}" placeholder="ft" oninput="onValChange('panels',${i},'len',this.value)">
+      <input class="ni" type="number" inputmode="numeric" min="0" step="1" value="${r.qty||''}" placeholder="條" oninput="onValChange('panels',${i},'qty',this.value)">
+      <span class="line-amt sqft-col ${r.sqft>0?'':'zero'}" id="pft-${i}">${r.sqft>0?r.sqft+' sqft':'—'}</span>
+      <span class="line-amt ${r.total>0?'':'zero'}" id="ptot-${i}">${fmtShort(r.total||0)}</span>
+      <button class="del-btn" onclick="delRow('panels',${i})">✕</button>
     </div>`).join('');
+
+  // BEAMS: product | price | length(ft) | qty | total_ft | total | del
+  document.getElementById('rows-beams').innerHTML = rows.beams.map((r,i)=>`
+    <div class="item-row beam-row">
+      ${makeSelect(BEAMS, r.pid, `onProdChange('beams',${i},this)`)}
+      <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$/ft" oninput="onValChange('beams',${i},'price',this.value)">
+      <input class="ni" type="number" inputmode="decimal" min="0" step="0.5" value="${r.len||''}" placeholder="ft" oninput="onValChange('beams',${i},'len',this.value)">
+      <input class="ni" type="number" inputmode="numeric" min="0" step="1" value="${r.qty||''}" placeholder="qty" oninput="onValChange('beams',${i},'qty',this.value)">
+      <span class="line-amt ${r.ftotal>0?'':'zero'}" id="bft-${i}">${r.ftotal>0?r.ftotal+' ft':'—'}</span>
+      <span class="line-amt ${r.total>0?'':'zero'}" id="btot-${i}">${fmtShort(r.total||0)}</span>
+      <button class="del-btn" onclick="delRow('beams',${i})">✕</button>
+    </div>`).join('');
+
+  // HARDWARE: product | price | qty | total | del
+  document.getElementById('rows-hardware').innerHTML = rows.hardware.map((r,i)=>`
+    <div class="item-row unit-row">
+      ${makeSelect(HARDWARE, r.pid, `onProdChange('hardware',${i},this)`)}
+      <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$" oninput="onValChange('hardware',${i},'price',this.value)">
+      <input class="ni" type="number" inputmode="numeric" min="0" step="1" value="${r.qty||''}" placeholder="qty" oninput="onValChange('hardware',${i},'qty',this.value)">
+      <span class="line-amt ${r.total>0?'':'zero'}" id="htot-${i}">${fmtShort(r.total||0)}</span>
+      <button class="del-btn" onclick="delRow('hardware',${i})">✕</button>
+    </div>`).join('');
+
+  // LABOUR: item | rate | qty/sqft | total | del
+  const sqft = getSqft();
+  document.getElementById('rows-labour').innerHTML = rows.labour.map((r,i)=>{
+    const isSqft = r.isSqft;
+    const qtyVal = isSqft && sqft>0 ? sqft : (r.qty||'');
+    const qtyPlaceholder = isSqft ? (sqft>0?sqft+' sqft':'sqft 自動') : 'qty';
+    return `<div class="item-row lab-row">
+      ${makeSelect(LABOUR_OPTS, r.pid, `onLabChange(${i},this)`)}
+      <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$" oninput="onValChange('labour',${i},'price',this.value)">
+      <input class="ni" type="number" inputmode="decimal" min="0" step="0.5" value="${qtyVal}" placeholder="${qtyPlaceholder}" ${isSqft&&sqft>0?'readonly style="background:var(--bg3);color:var(--text3)"':''} oninput="onValChange('labour',${i},'qty',this.value)">
+      <span class="line-amt ${r.total>0?'':'zero'}">${fmtShort(r.total||0)}</span>
+      <button class="del-btn" onclick="delRow('labour',${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function addRow(section){
+  rows[section].push({pid:'', price:0, len:0, qty:0, total:0, isSqft:false});
+  renderRows();
+}
+function delRow(section, i){
+  rows[section].splice(i,1);
+  calcAll();
+}
+function onProdChange(section, i, sel){
+  const opt = sel.options[sel.selectedIndex];
+  const pid = opt.value;
+  rows[section][i].pid = pid;
+  if(pid){
+    const priceAttr = opt.getAttribute('data-price');
+    rows[section][i].price = parseFloat(priceAttr)||0;
+  }
+  calcAll();
+}
+function onLabChange(i, sel){
+  const opt = sel.options[sel.selectedIndex];
+  const pid = opt.value;
+  rows.labour[i].pid = pid;
+  if(pid){
+    rows.labour[i].price = parseFloat(opt.getAttribute('data-price'))||0;
+    rows.labour[i].isSqft = opt.getAttribute('data-sqft')==='true';
+    if(rows.labour[i].isSqft) rows.labour[i].qty = getSqft();
+  }
+  calcAll();
+}
+function onValChange(section, i, field, val){
+  rows[section][i][field] = parseFloat(val)||0;
+  calcAll();
 }
 
 function calcAll(){
-  const length = $v('length');
-  const width  = $v('width');
-  const sqft   = length * width;
-  document.getElementById('sqft-display').textContent = sqft > 0 ? sqft+' sq ft' : '— sq ft';
+  let matTotal=0, labTotal=0;
+  const sqft = getSqft();
 
-  let matTotal = 0;
-  PRODUCTS.forEach(p => {
-    const price = $v('price_'+p.id);
-    const len   = $v('len_'+p.id);
-    const qty   = $v('qty_'+p.id);
-    let lineTotal = 0, ftTotal = 0;
-    if (p.type==='panel') {
-      // price × length(ft) × width(2ft) × qty
-      if (len>0 && qty>0) { ftTotal = len*p.width*qty; lineTotal = price*ftTotal; }
-    } else if (p.type==='linear') {
-      // price × length(ft) × qty
-      if (len>0 && qty>0) { ftTotal = len*qty; lineTotal = price*ftTotal; }
-    } else {
-      // price × qty
-      if (qty>0) { lineTotal = price*qty; }
-    }
-    matTotal += lineTotal;
-    const ftEl = document.getElementById('total_ft_'+p.id);
-    const totEl = document.getElementById('total_'+p.id);
-    if (ftEl) { ftEl.textContent = ftTotal>0?ftTotal+' ft':'—'; ftEl.className='line-total'+(lineTotal>0?'':' zero'); }
-    if (totEl) { totEl.textContent = lineTotal>0?fmt(lineTotal):'—'; totEl.className='line-total'+(lineTotal>0?'':' zero'); }
+  // Panels: price × length(ft) × 2(ft width) × qty(strips)
+  let panelTotal=0;
+  rows.panels.forEach(r=>{
+    r.sqft = (r.len>0&&r.qty>0) ? r.len*2*r.qty : 0;
+    r.total = r.sqft>0 ? r.price*r.sqft : 0;
+    panelTotal+=r.total; matTotal+=r.total;
   });
+  document.getElementById('tot-panels').textContent = fmt(panelTotal);
 
-  let labourTotal = 0;
-  LABOUR.forEach(l => {
-    const price = $v('lprice_'+l.id);
-    const qty   = $v('lqty_'+l.id);
-    const line  = qty>0 ? price*qty : 0;
-    labourTotal += line;
-    const el = document.getElementById('ltotal_'+l.id);
-    if (el) { el.textContent = line>0?fmt(line):'—'; el.className='line-total'+(line>0?'':' zero'); }
+  // Beams: price × length(ft) × qty
+  let beamTotal=0;
+  rows.beams.forEach(r=>{
+    r.ftotal = (r.len>0&&r.qty>0) ? r.len*r.qty : 0;
+    r.total = r.ftotal>0 ? r.price*r.ftotal : 0;
+    beamTotal+=r.total; matTotal+=r.total;
   });
+  document.getElementById('tot-beams').textContent = fmt(beamTotal);
 
-  const tax = matTotal * TAX_RATE;
-  const matWithTax = matTotal + tax;
-  const grand = matWithTax + labourTotal;
+  // Hardware: price × qty
+  let hwTotal=0;
+  rows.hardware.forEach(r=>{
+    r.total = r.qty>0 ? r.price*r.qty : 0;
+    hwTotal+=r.total; matTotal+=r.total;
+  });
+  document.getElementById('tot-hardware').textContent = fmt(hwTotal);
 
-  $s('sum-materials', fmt(matTotal));
-  $s('sum-before-tax', fmt(matTotal));
-  $s('sum-tax', fmt(tax));
-  $s('sum-mat-tax', fmt(matWithTax));
-  $s('sum-labour', fmt(labourTotal));
-  $s('sum-grand', fmt(grand));
+  // Labour
+  let labSec=0;
+  rows.labour.forEach(r=>{
+    if(r.isSqft) r.qty = sqft>0 ? sqft : r.qty;
+    r.total = r.qty>0 ? r.price*r.qty : 0;
+    labSec+=r.total; labTotal+=r.total;
+  });
+  document.getElementById('tot-labour').textContent = fmt(labSec);
+
+  const tax = matTotal*0.12;
+  const matTax = matTotal+tax;
+  const grand = matTax+labTotal;
+  document.getElementById('t-mat').textContent     = fmt(matTotal);
+  document.getElementById('t-tax').textContent     = fmt(tax);
+  document.getElementById('t-mat-tax').textContent = fmt(matTax);
+  document.getElementById('t-lab').textContent     = fmt(labTotal);
+  document.getElementById('t-grand').textContent   = fmt(grand);
+
+  renderRows();
+  autoSave();
 }
 
+function autoSave(){
+  try{sSet('bpc_quote_state',getState());}catch(e){}
+}
 function getState(){
-  const state = {
-    jobsite: document.getElementById('jobsite').value,
-    date: document.getElementById('date').value,
-    length: document.getElementById('length').value,
-    width: document.getElementById('width').value,
-    products: {}, labour: {}
+  return {
+    jobsite:document.getElementById('jobsite').value,
+    date:document.getElementById('date').value,
+    len:document.getElementById('len').value,
+    wid:document.getElementById('wid').value,
+    rows:JSON.parse(JSON.stringify(rows))
   };
-  PRODUCTS.forEach(p => {
-    const price = document.getElementById('price_'+p.id)?.value;
-    const len   = document.getElementById('len_'+p.id)?.value;
-    const qty   = document.getElementById('qty_'+p.id)?.value;
-    if (price||len||qty) state.products[p.id] = {price,len,qty};
-  });
-  LABOUR.forEach(l => {
-    const price = document.getElementById('lprice_'+l.id)?.value;
-    const qty   = document.getElementById('lqty_'+l.id)?.value;
-    if (qty) state.labour[l.id] = {price,qty};
-  });
-  return state;
 }
-
 function loadState(s){
-  if (!s) return;
-  document.getElementById('jobsite').value = s.jobsite||'';
-  document.getElementById('date').value = s.date||'';
-  document.getElementById('length').value = s.length||'';
-  document.getElementById('width').value = s.width||'';
-  PRODUCTS.forEach(p => {
-    const d = s.products?.[p.id];
-    if (d) {
-      if (d.price) document.getElementById('price_'+p.id).value = d.price;
-      if (d.len)   document.getElementById('len_'+p.id).value = d.len;
-      if (d.qty)   document.getElementById('qty_'+p.id).value = d.qty;
-    }
-  });
-  LABOUR.forEach(l => {
-    const d = s.labour?.[l.id];
-    if (d) {
-      if (d.price) document.getElementById('lprice_'+l.id).value = d.price;
-      if (d.qty)   document.getElementById('lqty_'+l.id).value = d.qty;
-    }
-  });
-  calcAll();
+  if(!s)return;
+  document.getElementById('jobsite').value=s.jobsite||'';
+  document.getElementById('date').value=s.date||'';
+  document.getElementById('len').value=s.len||'';
+  document.getElementById('wid').value=s.wid||'';
+  rows=s.rows||{panels:[],beams:[],hardware:[],labour:[]};
+  onDimChange();
 }
 
 function saveQuote(){
-  const state = getState();
-  const id = Date.now().toString();
-  const quotes = JSON.parse(safeGet('bpc_quotes')||'[]');
-  quotes.unshift({id, date:state.date||new Date().toLocaleDateString('en-CA'), jobsite:state.jobsite||'未命名', state});
-  safeSet('bpc_quotes', JSON.stringify(quotes));
-  safeSet('bpc_current_quote', JSON.stringify(state));
+  const s=getState();
+  const quotes=sGet('bpc_quotes',[]);
+  quotes.unshift({id:Date.now(),date:s.date||new Date().toLocaleDateString('en-CA'),jobsite:s.jobsite||'未命名',state:s});
+  if(quotes.length>50)quotes.pop();
+  sSet('bpc_quotes',quotes);
   alert('✅ 報價已儲存！');
 }
-
-function loadQuotes(){
-  const quotes = JSON.parse(safeGet('bpc_quotes')||'[]');
-  if (!quotes.length) { alert('尚無儲存的報價。'); return; }
-  const list = quotes.map((q,i)=>`${i+1}. [${q.date}] ${q.jobsite}`).join('\n');
-  const idx = prompt(`選擇報價編號：\n${list}`);
-  const n = parseInt(idx);
-  if (n>=1 && n<=quotes.length) { loadState(quotes[n-1].state); }
+function loadQuote(){
+  const quotes=sGet('bpc_quotes',[]);
+  if(!quotes.length){alert('尚無儲存的報價。');return;}
+  const list=quotes.map((q,i)=>`${i+1}. [${q.date}] ${q.jobsite}`).join('\n');
+  const idx=prompt('選擇報價編號：\n'+list);
+  const n=parseInt(idx);
+  if(n>=1&&n<=quotes.length){loadState(quotes[n-1].state);}
 }
-
 function clearAll(){
-  if (!confirm('確定清除所有資料？')) return;
-  document.querySelectorAll('.num-input').forEach(el => { if (!el.id.startsWith('price_') && !el.id.startsWith('lprice_')) el.value=''; });
+  if(!confirm('確定清除所有資料？'))return;
+  rows={panels:[],beams:[],hardware:[],labour:[]};
   document.getElementById('jobsite').value='';
-  document.getElementById('length').value='';
-  document.getElementById('width').value='';
-  calcAll();
+  document.getElementById('len').value='';
+  document.getElementById('wid').value='';
+  onDimChange();
 }
 
 function showPrint(){
-  const s = getState();
-  const length = parseFloat(s.length)||0;
-  const width  = parseFloat(s.width)||0;
-  const sqft   = length*width;
-  let matRows = '';
-  let matTotal = 0;
-  PRODUCTS.forEach(p => {
-    const d = s.products?.[p.id];
-    if (!d?.qty && !d?.len) return;
-    const price = parseFloat(d.price)||p.price;
-    const len = parseFloat(d.len)||0;
-    const qty = parseFloat(d.qty)||0;
-    let lineTotal=0, desc='';
-    if (p.type==='panel' && len>0 && qty>0){lineTotal=price*len*p.width*qty;desc=`${len}ft × ${p.width}ft × ${qty}条`;}
-    else if (p.type==='linear' && len>0 && qty>0){lineTotal=price*len*qty;desc=`${len}ft × ${qty}条`;}
-    else if (p.type==='unit' && qty>0){lineTotal=price*qty;desc=`${qty} 件`;}
-    if (lineTotal>0){
-      matTotal+=lineTotal;
-      matRows+=`<tr><td>${p.en}<br><span style="color:#9C8F84;font-size:10px">${p.zh}</span></td><td>${desc}</td><td class="amt">${fmt(price)}</td><td class="amt">${fmt(lineTotal)}</td></tr>`;
-    }
+  const sqft=getSqft();
+  const len=parseFloat(document.getElementById('len').value)||0;
+  const wid=parseFloat(document.getElementById('wid').value)||0;
+  const jobsite=document.getElementById('jobsite').value||'—';
+  const date=document.getElementById('date').value;
+
+  let matRows='', matTotal=0;
+  const addMatRow=(prod,spec,price,total)=>{
+    if(total<=0)return;
+    matTotal+=total;
+    matRows+=`<tr><td>${prod}</td><td>${spec}</td><td class="r">${fmt(price)}</td><td class="r">${fmt(total)}</td></tr>`;
+  };
+  rows.panels.forEach(r=>{
+    if(!r.pid||!r.total)return;
+    const p=PANELS.find(x=>x.id===r.pid);
+    addMatRow((p?p.en+' '+p.zh:r.pid),`${r.len}ft × 2ft × ${r.qty}條 = ${r.sqft} sqft`,r.price,r.total);
   });
+  rows.beams.forEach(r=>{
+    if(!r.pid||!r.total)return;
+    const p=BEAMS.find(x=>x.id===r.pid);
+    addMatRow((p?p.en+' '+p.zh:r.pid),`${r.len}ft × ${r.qty} = ${r.ftotal} ft`,r.price,r.total);
+  });
+  rows.hardware.forEach(r=>{
+    if(!r.pid||!r.total)return;
+    const p=HARDWARE.find(x=>x.id===r.pid);
+    addMatRow((p?p.en+' '+p.zh:r.pid),`× ${r.qty}`,r.price,r.total);
+  });
+
   let labRows='', labTotal=0;
-  LABOUR.forEach(l => {
-    const d = s.labour?.[l.id];
-    if (!d?.qty) return;
-    const price = parseFloat(d.price)||l.price;
-    const qty = parseFloat(d.qty)||0;
-    const line = price*qty;
-    if (line>0){labTotal+=line;labRows+=`<tr><td>${l.en}<br><span style="color:#9C8F84;font-size:10px">${l.zh}</span></td><td>${qty}</td><td class="amt">${fmt(price)}</td><td class="amt">${fmt(line)}</td></tr>`;}
+  rows.labour.forEach(r=>{
+    if(!r.pid||!r.total)return;
+    const p=LABOUR_OPTS.find(x=>x.id===r.pid);
+    labTotal+=r.total;
+    labRows+=`<tr><td>${p?p.en+' '+p.zh:r.pid}</td><td class="r">${fmt(r.price)}</td><td class="r">${r.qty}</td><td class="r">${fmt(r.total)}</td></tr>`;
   });
-  const tax=matTotal*TAX_RATE, matTax=matTotal+tax, grand=matTax+labTotal;
-  const dateStr = s.date ? new Date(s.date+'T12:00:00').toLocaleDateString('en-CA') : new Date().toLocaleDateString('en-CA');
+
+  const tax=matTotal*0.12, matTax=matTotal+tax, grand=matTax+labTotal;
+  const dateStr=date?new Date(date+'T12:00:00').toLocaleDateString('en-CA'):new Date().toLocaleDateString('en-CA');
+
   document.getElementById('print-content').innerHTML=`
-    <div class="qp-header">
-      <div class="qp-company">Bowen Aluminum</div>
-      <div class="qp-sub">Patio Cover Quote / 庭院遮蓋報價單</div>
-    </div>
+    <div class="qp-co">Bowen Aluminum</div>
+    <div class="qp-sub">Patio Cover Quote · 庭院遮蓋報價單</div>
     <div class="qp-info">
-      <div><div class="qp-label">Jobsite / 工地</div><strong>${s.jobsite||'—'}</strong></div>
+      <div><div class="qp-label">Jobsite / 工地</div><strong>${jobsite}</strong></div>
       <div><div class="qp-label">Date / 日期</div><strong>${dateStr}</strong></div>
-      <div><div class="qp-label">Size / 尺寸</div><strong>${length} × ${width} ft = ${sqft} sq ft</strong></div>
-      <div><div class="qp-label">Quote / 報價編號</div><strong>#${Date.now().toString().slice(-6)}</strong></div>
+      <div><div class="qp-label">Size / 尺寸</div><strong>${len} × ${wid} ft${sqft>0?' = '+sqft+' sq ft':''}</strong></div>
+      <div><div class="qp-label">Quote Ref</div><strong>#${Date.now().toString().slice(-6)}</strong></div>
     </div>
-    ${matRows?`<table class="qp-table"><thead><tr><th>材料 Material</th><th>規格 Spec</th><th>單價 Price</th><th>合計 Total</th></tr></thead><tbody>${matRows}</tbody></table>`:''}
-    ${labRows?`<table class="qp-table"><thead><tr><th>人工 Labour</th><th>數量 Qty</th><th>單價 Rate</th><th>合計 Total</th></tr></thead><tbody>${labRows}</tbody></table>`:''}
-    <div class="qp-totals">
-      <div class="qp-total-row"><span>材料小計 Materials</span><span>${fmt(matTotal)}</span></div>
-      <div class="qp-total-row"><span>GST/PST (12%)</span><span>${fmt(tax)}</span></div>
-      <div class="qp-total-row"><span>材料含稅 Materials + Tax</span><span>${fmt(matTax)}</span></div>
-      <div class="qp-total-row"><span>人工 Labour</span><span>${fmt(labTotal)}</span></div>
-      <div class="qp-total-row grand"><span>💰 總計 GRAND TOTAL</span><span>${fmt(grand)}</span></div>
+    ${matRows?`<table class="qp-tbl"><thead><tr><th>材料 Material</th><th>規格 Spec</th><th>單價</th><th>小計</th></tr></thead><tbody>${matRows}</tbody></table>`:''}
+    ${labRows?`<table class="qp-tbl"><thead><tr><th>人工 Labour</th><th>單價 Rate</th><th>數量</th><th>小計</th></tr></thead><tbody>${labRows}</tbody></table>`:''}
+    <div class="qp-tot">
+      <div class="qp-tot-row"><span>材料小計 Materials</span><span>${fmt(matTotal)}</span></div>
+      <div class="qp-tot-row"><span>GST/PST (12%)</span><span>${fmt(tax)}</span></div>
+      <div class="qp-tot-row"><span>材料含稅 Materials + Tax</span><span>${fmt(matTax)}</span></div>
+      <div class="qp-tot-row"><span>人工 Labour</span><span>${fmt(labTotal)}</span></div>
+      <div class="qp-tot-row grand"><span>💰 總計 GRAND TOTAL</span><span>${fmt(grand)}</span></div>
     </div>
-    <p style="margin-top:16px;font-size:11px;color:#9C8F84;text-align:center;">本報價單有效期30天 · This quote is valid for 30 days · Bowen Aluminum</p>`;
-  document.getElementById('print-overlay').classList.add('show');
+    <p style="margin-top:12px;font-size:11px;color:#9C8F84;text-align:center">本報價單有效期30天 · Valid for 30 days · Bowen Aluminum</p>`;
+  document.getElementById('overlay').classList.add('show');
 }
+function closeOverlay(){document.getElementById('overlay').classList.remove('show');}
 
-function closePrint(e){
-  if (!e || e.target===document.getElementById('print-overlay'))
-    document.getElementById('print-overlay').classList.remove('show');
-}
-
-// Init
-buildRows();
-document.getElementById('date').value = new Date().toLocaleDateString('en-CA');
-const saved = safeGet('bpc_current_quote');
-if (saved) { try { loadState(JSON.parse(saved)); } catch(e) { calcAll(); } } else { calcAll(); }
-// Auto-save on input — wrapped in try/catch so errors never block typing
-document.addEventListener('input', () => {
-  try { safeSet('bpc_current_quote', JSON.stringify(getState())); } catch(e) {}
-});
+// ── Init ──
+document.getElementById('date').value=new Date().toLocaleDateString('en-CA');
+const saved=sGet('bpc_quote_state',null);
+if(saved){try{loadState(saved);}catch(e){onDimChange();}} else {onDimChange();}
 </script>
 </body>
 </html>
