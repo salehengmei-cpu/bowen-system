@@ -906,15 +906,22 @@ function fillSku(oid,idx,sku){
 // ── Custom products (override master list) ──
 let customProducts = null;
 try { const _cp = safeGet('bpc_custom_products'); customProducts = _cp ? JSON.parse(_cp) : null; } catch(e) { customProducts = null; }
-// If customProducts is null, use master PRODUCTS; otherwise use custom list
-// Normalize: inventory uses name_zh/name_en, planner uses desc — handle both
+
 function getProducts() {
   const raw = customProducts !== null ? customProducts : PRODUCTS;
-  return raw.map(p => ({
-    ...p,
-    desc: p.desc || p.name_zh || p.name_en || p.sku,
-    name_zh: p.name_zh || p.desc || p.sku,
-  }));
+  return raw.map(p => {
+    // If dimensions are missing (came from inventory edit), restore from master by SKU
+    const master = (!p.l || !p.w || !p.h) ? PRODUCTS.find(m => m.sku === p.sku) : null;
+    return {
+      ...p,
+      l: p.l || (master && master.l) || 100,
+      w: p.w || (master && master.w) || 10,
+      h: p.h || (master && master.h) || 10,
+      wt: p.wt != null ? p.wt : (master && master.wt) || 0,
+      desc: p.desc || p.name_zh || p.name_en || p.sku,
+      name_zh: p.name_zh || p.desc || p.sku,
+    };
+  });
 }
 function saveProducts(list) { customProducts = list; safeSet('bpc_custom_products', JSON.stringify(list)); }
 function resetProducts() { customProducts = null; safeSet('bpc_custom_products', ''); }
@@ -979,9 +986,9 @@ function renderSettings() {
 }
 
 function editProduct(i, field, val) {
+  // Use getProducts() so dimensions are already restored before we edit
   const list = JSON.parse(JSON.stringify(getProducts()));
-  list[i][field] = val;
-  // keep desc and name_zh in sync so both apps work
+  list[i][field] = (field === 'l' || field === 'w' || field === 'h' || field === 'wt') ? (parseFloat(val) || 0) : val;
   if (field === 'desc') list[i].name_zh = val;
   if (field === 'name_zh') list[i].desc = val;
   saveProducts(list);
