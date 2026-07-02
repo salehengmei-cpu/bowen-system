@@ -266,6 +266,14 @@ canvas.map-canvas {
 }
 .fit-ok { background: var(--green-bg); color: var(--green); }
 .fit-no { background: var(--red-bg); color: var(--red); }
+/* Oversize alert banner */
+.oversize-alert{
+  background:#fdecea;border:1px solid #f5c6c2;border-left:4px solid var(--red);
+  border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;
+}
+.oversize-alert .oa-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#b91c1c;margin-bottom:6px}
+.oversize-alert .oa-item{font-size:12px;color:#7f1d1d;padding:3px 0;line-height:1.4}
+.oversize-alert .oa-item b{color:#b91c1c}
 .del-btn {
   background: none; border: none; cursor: pointer;
   color: var(--text3); padding: 4px; border-radius: 4px; font-size: 15px;
@@ -618,6 +626,22 @@ function getStatus(o) {
 const STATUS_LABEL = { draft:'草稿', loading:'進行中', full:'接近滿載', over:'超出上限' };
 const STATUS_CLASS = { draft:'badge-draft', loading:'badge-loading', full:'badge-full', over:'badge-over' };
 function pColor(p) { return p>100?'#E74C3C':p>85?'#E67E22':'#27AE60'; }
+
+// Check whether an item fits the container, and which dimension(s) are over.
+// Items can be rotated, so we compare the item's sorted dimensions against the
+// container's sorted dimensions (longest-to-longest). This correctly handles
+// long profiles that load lengthwise down the container.
+function checkFit(it){
+  const itemDims = [it.l||0, it.w||0, it.h||0].sort((a,b)=>b-a);
+  const contDims = [CONTAINER.L, CONTAINER.W, CONTAINER.H].sort((a,b)=>b-a);
+  const overAxes = [];
+  // Compare largest-to-largest, middle-to-middle, smallest-to-smallest
+  const axisNames = ['最長邊','次長邊','最短邊'];
+  for(let i=0;i<3;i++){
+    if(itemDims[i] > contDims[i]) overAxes.push({axis:axisNames[i], itemVal:itemDims[i], limit:contDims[i]});
+  }
+  return { fits: overAxes.length===0, overAxes };
+}
 
 // ── Smart 3D Load Map ──
 // Strategy: pack items into the container using a 2D height-map.
@@ -1342,9 +1366,13 @@ function renderOrder() {
   const {vol,wt,units,volPct,wtPct,usable} = calcTotals(o);
   const remaining = Math.max(0, usable-vol);
 
+  const oversizeItems = [];
   const rows = (o.items||[]).map((it,i) => {
-    const fits = it.l<=CONTAINER.L && it.w<=CONTAINER.W && it.h<=CONTAINER.H;
+    const fit = checkFit(it);
+    if(!fit.fits) oversizeItems.push({it, idx:i, fit});
     const sk = `sk_${o.id}_${i}`;
+    const chipLabel = fit.fits ? '合適' : '⚠ 超出';
+    const chipTitle = fit.fits ? '' : fit.overAxes.map(a=>`${a.axis} ${a.itemVal}cm > 上限 ${a.limit}cm`).join('；');
     return `<div class="item-row">
       <div class="sku-wrap">
         <input type="text" value="${it.sku}" placeholder="輸入SKU代碼…" id="input_${sk}"
@@ -1359,7 +1387,7 @@ function renderOrder() {
       <input type="number" value="${it.w}" readonly>
       <input type="number" value="${it.h}" readonly>
       <input type="number" value="${it.qty}" min="1" onchange="updateItem('${o.id}',${i},'qty',+this.value)">
-      <span class="fit-chip ${fits?'fit-ok':'fit-no'}">${fits?'合適':'過大'}</span>
+      <span class="fit-chip ${fit.fits?'fit-ok':'fit-no'}" title="${chipTitle}">${chipLabel}</span>
       <button class="del-btn" onclick="removeItem('${o.id}',${i})" title="移除">✕</button>
     </div>`;
   }).join('');
@@ -1380,6 +1408,15 @@ function renderOrder() {
       </div>
     </div>
     <div class="content">
+      ${oversizeItems.length ? `
+      <div class="oversize-alert">
+        <div class="oa-title">⚠️ 尺寸警告：${oversizeItems.length} 個品項超出貨櫃</div>
+        ${oversizeItems.map(({it,fit}) => `
+          <div class="oa-item">
+            <b>${it.sku||'未命名'}</b>（${it.desc||''}）— ${fit.overAxes.map(a=>`${a.axis} <b>${a.itemVal}cm</b> 超過上限 ${a.limit}cm`).join('，')}
+          </div>`).join('')}
+        <div class="oa-item" style="margin-top:4px;color:#9a3412;">貨櫃內部尺寸：長 ${CONTAINER.L} × 寬 ${CONTAINER.W} × 高 ${CONTAINER.H} cm</div>
+      </div>` : ''}
       <div class="summary-bar">
         <div class="s-card"><div class="s-label">已用體積</div><div class="s-val">${vol.toFixed(2)} m³</div><div class="s-sub">可用 ${usable.toFixed(1)} m³</div></div>
         <div class="s-card"><div class="s-label">總重量</div><div class="s-val">${Math.round(wt).toLocaleString()} kg</div><div class="s-sub">上限 26,680 kg</div></div>
