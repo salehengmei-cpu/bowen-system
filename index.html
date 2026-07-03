@@ -274,6 +274,16 @@ canvas.map-canvas {
 .oversize-alert .oa-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#b91c1c;margin-bottom:6px}
 .oversize-alert .oa-item{font-size:12px;color:#7f1d1d;padding:3px 0;line-height:1.4}
 .oversize-alert .oa-item b{color:#b91c1c}
+/* Bulk / stacking alerts */
+.stack-alert{border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px}
+.stack-alert.lvl-danger{background:#fdecea;border:1px solid #f5c6c2;border-left:4px solid var(--red)}
+.stack-alert.lvl-warn{background:#fef6e7;border:1px solid #f8e3b3;border-left:4px solid var(--amber)}
+.stack-alert .sa-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;margin-bottom:4px}
+.stack-alert.lvl-danger .sa-title{color:#b91c1c}
+.stack-alert.lvl-warn .sa-title{color:#b45309}
+.stack-alert .sa-detail{font-size:12px;line-height:1.4}
+.stack-alert.lvl-danger .sa-detail{color:#7f1d1d}
+.stack-alert.lvl-warn .sa-detail{color:#78500a}
 .del-btn {
   background: none; border: none; cursor: pointer;
   color: var(--text3); padding: 4px; border-radius: 4px; font-size: 15px;
@@ -643,6 +653,62 @@ function checkFit(it){
   return { fits: overAxes.length===0, overAxes };
 }
 
+// Analyse the packing plan for bulk / stacking / capacity problems.
+// Returns a list of warnings, each with a level ('danger' or 'warn') and message.
+function checkStacking(o, pl){
+  const warns = [];
+  const { vol, wt, volPct, wtPct, usable } = calcTotals(o);
+
+  // 1. Items that physically couldn't be placed (container full / too packed)
+  if (pl && pl.unplaced > 0){
+    const skuList = Object.entries(pl.unplacedBySku||{})
+      .map(([sku,n]) => `${sku} ×${n}`).join('，');
+    warns.push({
+      level:'danger',
+      title:`裝不下：${pl.unplaced} 件無法放入貨櫃`,
+      detail:`以下貨品超出貨櫃可用空間：${skuList}。請減少數量或改用另一個貨櫃。`
+    });
+  }
+
+  // 2. Stack height near or over container ceiling
+  if (pl && pl.maxStackH > 0){
+    const stackPct = (pl.maxStackH / CONTAINER.H) * 100;
+    if (stackPct > 100){
+      warns.push({ level:'danger',
+        title:`堆疊過高：${Math.round(pl.maxStackH)}cm 超過貨櫃高度 ${CONTAINER.H}cm`,
+        detail:`部分堆疊超出貨櫃內高，請降低堆疊層數。` });
+    } else if (stackPct >= 90){
+      warns.push({ level:'warn',
+        title:`堆疊偏高：最高 ${Math.round(pl.maxStackH)}cm（貨櫃高 ${CONTAINER.H}cm）`,
+        detail:`堆疊已達 ${Math.round(stackPct)}%，接近貨櫃頂部，裝載時請注意穩固。` });
+    }
+  }
+
+  // 3. Overweight
+  if (wtPct > 100){
+    warns.push({ level:'danger',
+      title:`超重：${Math.round(wt).toLocaleString()}kg 超過上限 ${CONTAINER.maxWt.toLocaleString()}kg`,
+      detail:`已超過貨櫃載重上限，請減少重量。` });
+  } else if (wtPct >= 90){
+    warns.push({ level:'warn',
+      title:`重量偏高：${Math.round(wt).toLocaleString()}kg（上限 ${CONTAINER.maxWt.toLocaleString()}kg）`,
+      detail:`已達載重 ${Math.round(wtPct)}%，接近上限。` });
+  }
+
+  // 4. Volume over the chosen buffer
+  if (volPct > 100){
+    warns.push({ level:'danger',
+      title:`體積超出緩衝上限：${Math.round(volPct)}%`,
+      detail:`已用體積 ${vol.toFixed(1)}m³ 超過設定的可用空間 ${usable.toFixed(1)}m³（緩衝 ${o.buffer||85}%）。` });
+  } else if (volPct >= 90){
+    warns.push({ level:'warn',
+      title:`體積接近上限：${Math.round(volPct)}%`,
+      detail:`已用 ${vol.toFixed(1)}m³，接近設定的可用空間 ${usable.toFixed(1)}m³。` });
+  }
+
+  return warns;
+}
+
 // ── Smart 3D Load Map ──
 // Strategy: pack items into the container using a 2D height-map.
 // floorGrid[xi][yi] = current stack height at grid cell (xi, yi)
@@ -661,6 +727,10 @@ function buildMap(items) {
   // Sort items by volume descending — place largest first for better packing
   const sorted = [...(items||[])].map((it, origIdx) => ({...it, origIdx}))
     .sort((a, b) => (b.l*b.w*b.h) - (a.l*a.w*a.h));
+
+  let unplaced = 0;         // count of item-pieces that couldn't fit
+  const unplacedBySku = {}; // sku -> count not placed
+  let maxStackH = 0;        // tallest stack reached (cm)
 
   sorted.forEach(it => {
     const color = PALETTE[it.origIdx % PALETTE.length];
@@ -693,9 +763,16 @@ function buildMap(items) {
         }
       }
 
-      if (bestX === -1) break; // no room left
+      if (bestX === -1) {
+        // Couldn't place this piece (and, by sorting, likely the rest of this SKU too)
+        const remaining = (it.qty||0) - q;
+        unplaced += remaining;
+        unplacedBySku[it.sku||'?'] = (unplacedBySku[it.sku||'?']||0) + remaining;
+        break;
+      }
 
       pl.push({ x: bestX, y: bestY, z: bestZ, l, w, h, color, label: it.sku||'?' });
+      if (bestZ + h > maxStackH) maxStackH = bestZ + h;
 
       // Update floor heights
       const gx0 = Math.round(bestX / GRID);
@@ -710,6 +787,9 @@ function buildMap(items) {
     }
   });
 
+  pl.unplaced = unplaced;
+  pl.unplacedBySku = unplacedBySku;
+  pl.maxStackH = maxStackH;
   return pl;
 }
 
@@ -1366,6 +1446,10 @@ function renderOrder() {
   const {vol,wt,units,volPct,wtPct,usable} = calcTotals(o);
   const remaining = Math.max(0, usable-vol);
 
+  // Build packing plan first so we can warn about bulk/stacking issues
+  const plan = buildMap(o.items);
+  const stackWarnings = checkStacking(o, plan);
+
   const oversizeItems = [];
   const rows = (o.items||[]).map((it,i) => {
     const fit = checkFit(it);
@@ -1417,6 +1501,11 @@ function renderOrder() {
           </div>`).join('')}
         <div class="oa-item" style="margin-top:4px;color:#9a3412;">貨櫃內部尺寸：長 ${CONTAINER.L} × 寬 ${CONTAINER.W} × 高 ${CONTAINER.H} cm</div>
       </div>` : ''}
+      ${stackWarnings.map(w => `
+      <div class="stack-alert lvl-${w.level}">
+        <div class="sa-title">${w.level==='danger'?'🚫':'⚠️'} ${w.title}</div>
+        <div class="sa-detail">${w.detail}</div>
+      </div>`).join('')}
       <div class="summary-bar">
         <div class="s-card"><div class="s-label">已用體積</div><div class="s-val">${vol.toFixed(2)} m³</div><div class="s-sub">可用 ${usable.toFixed(1)} m³</div></div>
         <div class="s-card"><div class="s-label">總重量</div><div class="s-val">${Math.round(wt).toLocaleString()} kg</div><div class="s-sub">上限 26,680 kg</div></div>
@@ -1463,8 +1552,7 @@ function renderOrder() {
       </div>
     </div>`;
 
-  const pl = buildMap(o.items);
-  setTimeout(() => { drawCanvas('mt'+o.id, pl, 'top'); drawCanvas('ms'+o.id, pl, 'side'); }, 40);
+  setTimeout(() => { drawCanvas('mt'+o.id, plan, 'top'); drawCanvas('ms'+o.id, plan, 'side'); }, 40);
 }
 
 function renderEmpty() {
