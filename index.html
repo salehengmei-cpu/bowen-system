@@ -1036,26 +1036,46 @@ function openAutoFill(id){
   const remainVol = Math.max(0, usable - vol);
   const remainWt = Math.max(0, CONTAINER.maxWt - wt);
 
+  // How much lengthwise room is left along the container floor.
+  // Estimate used length from the packing plan (how far items reach down the container).
+  const plan = buildMap(o.items);
+  let usedLen = 0;
+  (plan||[]).forEach(b => { if (b.x + b.l > usedLen) usedLen = b.x + b.l; });
+  const remainLen = Math.max(0, CONTAINER.L - usedLen);
+
+  // Container's sorted dims (for rotation-aware max-length check)
+  const contDims = [CONTAINER.L, CONTAINER.W, CONTAINER.H].sort((a,b)=>b-a);
+
   // Only container-ready products (with real packing dimensions)
   const candidates = getProducts().filter(p=>p.has_dims);
 
-  // Priority: how many of this item could fit in remaining volume (more = higher priority),
-  // then by category so profiles come first
   const catRank = {'PATIO COVER PROFILES':0,'GLASS':1,'GUTTERS & DRAINAGE':2,'HARDWARE & FASTENERS':3,'SEALANTS & ADHESIVES':4};
   const withFit = candidates.map(p=>{
+    // Rotation-aware: item's sorted dims must each fit within container's sorted dims
+    const itemDims = [p.l||0, p.w||0, p.h||0].sort((a,b)=>b-a);
+    const dimensionallyFits = itemDims[0] <= contDims[0] && itemDims[1] <= contDims[1] && itemDims[2] <= contDims[2];
+
+    // The item's longest side lies along the container length, so it needs that much remaining length
+    const itemLongest = itemDims[0];
+    const fitsRemainingLength = itemLongest <= remainLen + 1; // +1cm tolerance
+
     const unitVol = (p.l/100)*(p.w/100)*(p.h/100);
     const byVol = unitVol>0 ? Math.floor(remainVol/unitVol) : 0;
     const byWt  = p.wt>0 ? Math.floor(remainWt/p.wt) : 9999;
-    const canFit = Math.max(0, Math.min(byVol, byWt));
-    return {...p, unitVol, canFit};
+    let canFit = Math.max(0, Math.min(byVol, byWt));
+
+    // If the item can't fit in the remaining length at all, it can't be suggested
+    if(!dimensionallyFits || !fitsRemainingLength) canFit = 0;
+
+    return {...p, unitVol, canFit, itemLongest};
   }).filter(p=>p.canFit>0)
     .sort((a,b)=>(catRank[a.category]??9)-(catRank[b.category]??9) || b.canFit-a.canFit);
 
   document.getElementById('af-sub').innerHTML =
-    `剩餘空間：<b>${remainVol.toFixed(1)} m³</b> · 剩餘載重：<b>${Math.round(remainWt).toLocaleString()} kg</b><br>以下為可裝入的產品建議數量，您可自行調整後加入。`;
+    `剩餘空間：<b>${remainVol.toFixed(1)} m³</b> · 剩餘長度：<b>${Math.round(remainLen)} cm</b> · 剩餘載重：<b>${Math.round(remainWt).toLocaleString()} kg</b><br>以下產品長度可裝入剩餘空間，建議數量可自行調整後加入。`;
 
   if(!withFit.length){
-    document.getElementById('af-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">貨櫃已滿或沒有可裝入的產品。</div>';
+    document.getElementById('af-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">貨櫃已滿或沒有長度合適的產品可裝入。</div>';
   } else {
     document.getElementById('af-list').innerHTML = withFit.map(p=>`
       <div class="af-item">
