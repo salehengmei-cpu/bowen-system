@@ -1084,9 +1084,13 @@ function addAutoFillItem(sku){
   if(existing){ existing.qty = (existing.qty||0)+qty; }
   else { o.items.push({sku:p.sku, desc:p.desc||p.name_zh||p.sku, l:p.l||0, w:p.w||0, h:p.h||0, qty, wt:p.wt||0}); }
   save();
-  // Refresh the suggestions with updated remaining space
-  openAutoFill(autoFillOrderId);
+  // Refresh the order page behind the modal (items list, capacity bars, load map, alerts)
+  const keepId = autoFillOrderId;
+  renderOrder();
   renderSidebar();
+  // Re-open the suggestions with updated remaining space (renderOrder rebuilt the page)
+  autoFillOrderId = keepId;
+  openAutoFill(keepId);
 }
 
 // ── Print packing sheet ──
