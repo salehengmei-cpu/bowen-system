@@ -219,6 +219,30 @@ canvas.map-canvas {
   background: var(--bg2); border: 1px solid var(--border);
   border-radius: var(--radius); box-shadow: var(--shadow);
 }
+/* Customer info card */
+.cust-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px;margin-bottom:14px}
+.cust-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cust-field{display:flex;flex-direction:column;gap:3px}
+.cust-field label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em}
+.cust-field input{padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text);font-family:inherit}
+.cust-field input:focus{outline:none;border-color:var(--brand-mid)}
+@media(max-width:680px){.cust-grid{grid-template-columns:1fr}}
+/* Auto-fill modal */
+.af-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:850;align-items:center;justify-content:center;padding:16px}
+.af-overlay.show{display:flex}
+.af-box{background:var(--bg2);border-radius:var(--radius);width:100%;max-width:560px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow)}
+.af-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.af-hd h3{font-size:15px;font-weight:700;color:var(--brand)}
+.af-sub{padding:10px 16px;background:var(--brand-light);font-size:12px;color:var(--text2);border-bottom:1px solid var(--border)}
+.af-list{overflow-y:auto;padding:8px 12px;flex:1;-webkit-overflow-scrolling:touch}
+.af-item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px}
+.af-item .afi-info{min-width:0}
+.af-item .afi-sku{font-weight:700;color:var(--brand);font-size:12px}
+.af-item .afi-name{font-size:12px;color:var(--text);margin-top:1px}
+.af-item .afi-meta{font-size:10px;color:var(--text3);margin-top:2px}
+.af-item .afi-qty{width:60px;padding:6px;border:1px solid var(--border2);border-radius:4px;text-align:center;font-size:13px}
+.af-item .afi-add{padding:6px 12px;background:var(--green);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap}
+.af-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px}
 .items-hd {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 16px; border-bottom: 1px solid var(--border);
@@ -599,6 +623,22 @@ canvas.map-canvas {
   </div>
 </div>
 
+<!-- Auto-fill remaining space modal -->
+<div class="af-overlay" id="af-overlay" onclick="if(event.target===this)closeAutoFill()">
+  <div class="af-box">
+    <div class="af-hd">
+      <h3>✨ 填滿剩餘空間建議</h3>
+      <button class="close-btn" onclick="closeAutoFill()">✕</button>
+    </div>
+    <div class="af-sub" id="af-sub"></div>
+    <div class="af-list" id="af-list"></div>
+    <div class="af-foot">
+      <span style="font-size:12px;color:var(--text3)">建議數量可自行調整</span>
+      <button class="btn btn-primary" onclick="closeAutoFill()">完成</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Constants ──
 const CONTAINER = { L:1203, W:235, H:270, vol:76.3, maxWt:26680 };
@@ -795,7 +835,12 @@ function buildMap(items) {
 
 function drawCanvas(id, pl, view) {
   const canvas = document.getElementById(id); if (!canvas) return;
-  const dpr = window.devicePixelRatio || 1;
+  drawCanvasTo(canvas, pl, view, window);
+}
+function drawCanvasTo(canvas, pl, view, win) {
+  if (!canvas) return;
+  win = win || window;
+  const dpr = win.devicePixelRatio || 1;
   const dw = canvas.clientWidth || 300;
   // Aspect ratios: top=L×W, side=L×H
   const aspectTop = CONTAINER.W / CONTAINER.L;
@@ -956,7 +1001,7 @@ function switchTab(t) {
 // ── Order actions ──
 function newOrder() {
   const id = Date.now().toString();
-  orders.unshift({id, name:'新訂單', date:new Date().toLocaleDateString('zh-TW'), items:[], buffer:85});
+  orders.unshift({id, name:'新訂單', date:new Date().toLocaleDateString('zh-TW'), items:[], buffer:85, customer:'', poNumber:'', destination:'', notes:''});
   save(); renderSidebar(); selectOrder(id);
 }
 function selectOrder(id) {
@@ -980,6 +1025,165 @@ function duplicateOrder(id) {
 }
 function renameOrder(id,v){const o=orders.find(o=>o.id===id);if(o){o.name=v||'未命名';save();renderSidebar();}}
 function updateDate(id,v){const o=orders.find(o=>o.id===id);if(o){o.date=v;save();renderSidebar();}}
+function updateOrderField(id,field,v){const o=orders.find(o=>o.id===id);if(o){o[field]=v;save();}}
+
+// ── Auto-fill remaining container space ──
+let autoFillOrderId = null;
+function openAutoFill(id){
+  autoFillOrderId = id;
+  const o = orders.find(o=>o.id===id); if(!o) return;
+  const { vol, wt, usable } = calcTotals(o);
+  const remainVol = Math.max(0, usable - vol);
+  const remainWt = Math.max(0, CONTAINER.maxWt - wt);
+
+  // Only container-ready products (with real packing dimensions)
+  const candidates = getProducts().filter(p=>p.has_dims);
+
+  // Priority: how many of this item could fit in remaining volume (more = higher priority),
+  // then by category so profiles come first
+  const catRank = {'PATIO COVER PROFILES':0,'GLASS':1,'GUTTERS & DRAINAGE':2,'HARDWARE & FASTENERS':3,'SEALANTS & ADHESIVES':4};
+  const withFit = candidates.map(p=>{
+    const unitVol = (p.l/100)*(p.w/100)*(p.h/100);
+    const byVol = unitVol>0 ? Math.floor(remainVol/unitVol) : 0;
+    const byWt  = p.wt>0 ? Math.floor(remainWt/p.wt) : 9999;
+    const canFit = Math.max(0, Math.min(byVol, byWt));
+    return {...p, unitVol, canFit};
+  }).filter(p=>p.canFit>0)
+    .sort((a,b)=>(catRank[a.category]??9)-(catRank[b.category]??9) || b.canFit-a.canFit);
+
+  document.getElementById('af-sub').innerHTML =
+    `剩餘空間：<b>${remainVol.toFixed(1)} m³</b> · 剩餘載重：<b>${Math.round(remainWt).toLocaleString()} kg</b><br>以下為可裝入的產品建議數量，您可自行調整後加入。`;
+
+  if(!withFit.length){
+    document.getElementById('af-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">貨櫃已滿或沒有可裝入的產品。</div>';
+  } else {
+    document.getElementById('af-list').innerHTML = withFit.map(p=>`
+      <div class="af-item">
+        <div class="afi-info">
+          <div class="afi-sku">${p.sku}</div>
+          <div class="afi-name">${p.desc||p.name_zh||''}</div>
+          <div class="afi-meta">${p.l}×${p.w}×${p.h}cm · ${p.wt}kg · 最多可裝 <b>${p.canFit}</b> 件</div>
+        </div>
+        <input class="afi-qty" type="number" inputmode="numeric" min="0" max="${p.canFit}" value="${Math.min(p.canFit, 10)}" id="afqty_${p.sku.replace(/[^a-zA-Z0-9]/g,'_')}">
+        <button class="afi-add" onclick="addAutoFillItem('${p.sku.replace(/'/g,"\\'")}')">加入</button>
+      </div>`).join('');
+  }
+  document.getElementById('af-overlay').classList.add('show');
+}
+function closeAutoFill(){
+  document.getElementById('af-overlay').classList.remove('show');
+  autoFillOrderId = null;
+}
+function addAutoFillItem(sku){
+  const o = orders.find(o=>o.id===autoFillOrderId); if(!o) return;
+  const p = getProducts().find(p=>p.sku===sku); if(!p) return;
+  const qtyInput = document.getElementById('afqty_'+sku.replace(/[^a-zA-Z0-9]/g,'_'));
+  const qty = parseInt(qtyInput.value)||0;
+  if(qty<=0) return;
+  const existing = o.items.find(it=>it.sku===p.sku);
+  if(existing){ existing.qty = (existing.qty||0)+qty; }
+  else { o.items.push({sku:p.sku, desc:p.desc||p.name_zh||p.sku, l:p.l||0, w:p.w||0, h:p.h||0, qty, wt:p.wt||0}); }
+  save();
+  // Refresh the suggestions with updated remaining space
+  openAutoFill(autoFillOrderId);
+  renderSidebar();
+}
+
+// ── Print packing sheet ──
+function printOrder(id){
+  const o = orders.find(o=>o.id===id); if(!o) return;
+  const { vol, wt, units, volPct, wtPct, usable } = calcTotals(o);
+  const plan = buildMap(o.items);
+
+  const itemRows = (o.items||[]).map((it,i)=>{
+    const lineVol = ((it.l/100)*(it.w/100)*(it.h/100)*(it.qty||0)).toFixed(2);
+    const lineWt = ((it.wt||0)*(it.qty||0)).toFixed(1);
+    return `<tr>
+      <td>${i+1}</td>
+      <td><b>${it.sku||''}</b></td>
+      <td>${it.desc||''}</td>
+      <td class="c">${it.l}×${it.w}×${it.h}</td>
+      <td class="c">${it.qty||0}</td>
+      <td class="r">${lineVol}</td>
+      <td class="r">${lineWt}</td>
+    </tr>`;
+  }).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
+    <title>裝箱單 ${o.name}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",Arial,sans-serif;color:#1A1714;padding:24px;font-size:13px}
+      .ph{text-align:center;border-bottom:3px solid #7B5E3A;padding-bottom:12px;margin-bottom:16px}
+      .ph h1{font-size:22px;color:#7B5E3A}
+      .ph .sub{font-size:12px;color:#777;margin-top:2px}
+      .info{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;margin-bottom:16px;font-size:13px}
+      .info div{padding:3px 0}
+      .info .lbl{color:#999;font-size:11px}
+      table{width:100%;border-collapse:collapse;margin-bottom:16px}
+      th{background:#7B5E3A;color:#fff;padding:7px 8px;text-align:left;font-size:11px}
+      td{padding:6px 8px;border-bottom:1px solid #E3DDD3;font-size:12px}
+      td.c{text-align:center}td.r{text-align:right}
+      tr:nth-child(even) td{background:#faf8f5}
+      .totals{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+      .tc{border:1px solid #E3DDD3;border-radius:8px;padding:10px;text-align:center}
+      .tc .tv{font-size:18px;font-weight:700;color:#7B5E3A}
+      .tc .tl{font-size:10px;color:#999;text-transform:uppercase;margin-top:2px}
+      .maps{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+      .map-box{border:1px solid #E3DDD3;border-radius:8px;padding:8px}
+      .map-box .ml{font-size:11px;color:#777;margin-bottom:4px;text-align:center}
+      canvas{width:100%;display:block;background:#131C2B;border-radius:4px}
+      .foot{margin-top:20px;font-size:11px;color:#999;text-align:center;border-top:1px solid #E3DDD3;padding-top:10px}
+      .sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:12px}
+      .sign div{border-top:1px solid #999;padding-top:5px;color:#777}
+      @media print{body{padding:0}.no-print{display:none}}
+    </style></head><body>
+    <div class="ph">
+      <h1>Bowen Aluminum — 貨櫃裝箱單</h1>
+      <div class="sub">Container Packing List</div>
+    </div>
+    <div class="info">
+      <div><span class="lbl">訂單 Order</span><br><b>${o.name||'—'}</b></div>
+      <div><span class="lbl">日期 Date</span><br>${o.date||'—'}</div>
+      <div><span class="lbl">客戶 Customer</span><br>${o.customer||'—'}</div>
+      <div><span class="lbl">訂單號 PO/Order#</span><br>${o.poNumber||'—'}</div>
+      <div><span class="lbl">目的地 Destination</span><br>${o.destination||'—'}</div>
+      <div><span class="lbl">備註 Notes</span><br>${o.notes||'—'}</div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>SKU</th><th>產品 Product</th><th>尺寸 cm (L×W×H)</th><th>數量 Qty</th><th>體積 m³</th><th>重量 kg</th></tr></thead>
+      <tbody>${itemRows||'<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">無品項</td></tr>'}</tbody>
+    </table>
+    <div class="totals">
+      <div class="tc"><div class="tv">${vol.toFixed(2)}</div><div class="tl">總體積 m³</div></div>
+      <div class="tc"><div class="tv">${Math.round(wt).toLocaleString()}</div><div class="tl">總重量 kg</div></div>
+      <div class="tc"><div class="tv">${units}</div><div class="tl">總件數 pcs</div></div>
+      <div class="tc"><div class="tv">${Math.round(volPct)}%</div><div class="tl">裝載率</div></div>
+    </div>
+    <div class="maps">
+      <div class="map-box"><div class="ml">俯視圖 Top View (長 × 寬)</div><canvas id="pmt"></canvas></div>
+      <div class="map-box"><div class="ml">側視圖 Side View (長 × 高)</div><canvas id="pms"></canvas></div>
+    </div>
+    <div class="sign">
+      <div>裝箱人簽名 Packed by</div>
+      <div>核對人簽名 Checked by</div>
+    </div>
+    <div class="foot">貨櫃：40' HQ (${CONTAINER.L}×${CONTAINER.W}×${CONTAINER.H}cm) · 列印時間 ${new Date().toLocaleString('zh-TW')} · Bowen Aluminum</div>
+    <div class="no-print" style="text-align:center;margin-top:16px">
+      <button onclick="window.print()" style="padding:10px 24px;background:#7B5E3A;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px">🖨️ 列印 Print</button>
+    </div>
+    </body></html>`);
+  win.document.close();
+
+  // Draw the load maps into the print window
+  setTimeout(()=>{
+    try {
+      drawCanvasTo(win.document.getElementById('pmt'), plan, 'top', win);
+      drawCanvasTo(win.document.getElementById('pms'), plan, 'side', win);
+    } catch(e){}
+  }, 300);
+}
 function updateBuf(id,v){const o=orders.find(o=>o.id===id);if(o){o.buffer=v;save();renderOrder();renderSidebar();}}
 function addItem(id){
   // Open the product picker instead of adding a blank type-to-search row
@@ -1487,11 +1691,32 @@ function renderOrder() {
           style="font-size:12px;border:1px solid #C8C0B4;border-radius:5px;padding:4px 8px;color:#1A1714;font-family:inherit;">
       </div>
       <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="printOrder('${o.id}')">🖨️ 列印裝箱單</button>
         <button class="btn" onclick="duplicateOrder('${o.id}')">複製訂單</button>
         <button class="btn btn-danger" onclick="deleteOrder('${o.id}')">刪除</button>
       </div>
     </div>
     <div class="content">
+      <div class="cust-card">
+        <div class="cust-grid">
+          <div class="cust-field">
+            <label>客戶 Customer</label>
+            <input type="text" value="${o.customer||''}" placeholder="客戶名稱" onchange="updateOrderField('${o.id}','customer',this.value)">
+          </div>
+          <div class="cust-field">
+            <label>訂單號 PO / Order #</label>
+            <input type="text" value="${o.poNumber||''}" placeholder="訂單編號" onchange="updateOrderField('${o.id}','poNumber',this.value)">
+          </div>
+          <div class="cust-field">
+            <label>目的地 Destination</label>
+            <input type="text" value="${o.destination||''}" placeholder="港口 / 地址" onchange="updateOrderField('${o.id}','destination',this.value)">
+          </div>
+          <div class="cust-field">
+            <label>備註 Notes</label>
+            <input type="text" value="${o.notes||''}" placeholder="特別指示" onchange="updateOrderField('${o.id}','notes',this.value)">
+          </div>
+        </div>
+      </div>
       ${oversizeItems.length ? `
       <div class="oversize-alert">
         <div class="oa-title">⚠️ 尺寸警告：${oversizeItems.length} 個品項超出貨櫃</div>
@@ -1545,7 +1770,10 @@ function renderOrder() {
       <div class="items-card">
         <div class="items-hd">
           <span class="items-hd-title">貨品明細</span>
-          <button class="add-item-btn" onclick="addItem('${o.id}')">＋ 選擇產品</button>
+          <div style="display:flex;gap:6px;">
+            <button class="add-item-btn" style="background:var(--green);" onclick="openAutoFill('${o.id}')">✨ 填滿建議</button>
+            <button class="add-item-btn" onclick="addItem('${o.id}')">＋ 選擇產品</button>
+          </div>
         </div>
         <div class="col-hd"><span>SKU代碼</span><span>產品名稱</span><span>長cm</span><span>寬cm</span><span>高cm</span><span>數量</span><span>狀態</span><span></span></div>
         ${o.items.length ? rows : '<div class="empty-state">尚無品項 — 點擊「選擇產品」從清單挑選加入貨櫃</div>'}
