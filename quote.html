@@ -59,6 +59,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .del-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:2px 4px;border-radius:4px}
 .del-btn:hover{color:var(--red);background:var(--red-bg)}
 .add-row-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:none;border:1px dashed var(--border2);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;color:var(--text3);margin-top:6px}
+.build-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.build-btn{flex:1;min-width:110px;padding:9px 8px;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:600;color:#fff}
+.bb-glass{background:#3B7BB5}.bb-glass:hover{background:#316799}
+.bb-v{background:#3B9B5C}.bb-v:hover{background:#31834D}
+.bb-mix{background:#C89B3C}.bb-mix:hover{background:#AC8531}
 .add-row-btn:hover{background:var(--brand-light);color:var(--brand);border-color:var(--brand-mid)}
 
 /* Panel cols: product select | price | length | qty(strips) | sqft | total */
@@ -148,6 +153,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
     <div class="field"><label>寬度 Width (ft)</label><input id="wid" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="onDimChange()"></div>
     <div class="sqft-box" id="sqft-box">— sq ft</div>
   </div>
+  <div class="hdr-dims" style="margin-top:8px">
+    <div class="field"><label>結構顏色 Structure Colour</label>
+      <select id="structColor" onchange="calcAll()">
+        <option value="black">黑色 Black</option>
+        <option value="white">白色 White</option>
+      </select>
+    </div>
+  </div>
 </div>
 
 <!-- Panels -->
@@ -157,6 +170,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
     <span class="sec-total" id="tot-panels">$0</span>
   </div>
   <div class="sec-body" id="body-panels">
+    <div class="build-btns">
+      <button class="build-btn bb-glass" onclick="buildPanels('glass')">🟦 Build Glass Panels 建玻璃</button>
+      <button class="build-btn bb-v" onclick="buildPanels('v')">🟩 Build V-Panels 建V板</button>
+      <button class="build-btn bb-mix" onclick="buildPanels('mix')">🟨 Build Mix Panels 混合</button>
+    </div>
     <div class="tbl-hd panel-hd"><span>產品</span><span>單價$/ft</span><span>長度 ft</span><span>條數 qty</span><span class="sqft-col">總sqft</span><span>小計</span><span></span></div>
     <div id="rows-panels"></div>
     <button class="add-row-btn" onclick="addRow('panels')">＋ 加一行</button>
@@ -278,6 +296,8 @@ const HARDWARE = [
   {id:'glspl',   en:'Glass Splice',        zh:'玻璃接駁頭',  price:2.8},
   {id:'corner',  en:'Small Corner 包角',   zh:'包角',        price:1.0},
   {id:'sc58',    en:'Screw 5/8"',          zh:'螺絲 5/8"',   price:0.09},
+  {id:'sc58_blk',en:'Screw 5/8" Black',    zh:'螺絲 5/8" 黑',price:0.09},
+  {id:'sc58_wht',en:'Screw 5/8" White',    zh:'螺絲 5/8" 白',price:0.09},
   {id:'sc1',     en:'Screw 1"',            zh:'螺絲 1"',     price:0.25},
   {id:'sc2',     en:'Screw 2"',            zh:'螺絲 2"',     price:0.12},
   {id:'sc3',     en:'Screw 3"',            zh:'螺絲 3"',     price:0.85},
@@ -373,6 +393,104 @@ function toggleSec(name){
   b.classList.toggle('hidden');
 }
 
+// ══════════════════════════════════════════════════════════════
+// PANEL BUILDER — Glass / V-Panel / Mix
+// Geometry: panel LENGTH = project WIDTH; # panels = project LENGTH ÷ 2ft (2ft each)
+// Uneven → full 2ft panels + last offcut, pop-up "tailor-made"
+// Glass panel: +2 double-side tape, +6 screws; over 12ft → +1 glass splice per split
+// V-panel: +8 screws
+// Post: +12 screws, +2 post shoe, +4 × 2" screws (from auto post count)
+// T-bars: total panels + 1, length = panel length
+// Colour: all screws/T-bars/tape/shoes/splices follow structure colour
+// ══════════════════════════════════════════════════════════════
+function structColour(){ return document.getElementById('structColor').value || 'black'; }
+function colourZh(){ return structColour()==='black' ? '黑' : '白'; }
+
+function buildPanels(mode){
+  const length = parseFloat(document.getElementById('len').value)||0;  // along the run
+  const width  = parseFloat(document.getElementById('wid').value)||0;  // = panel length
+  if(length<=0 || width<=0){
+    alert('請先輸入專案長度和寬度\nPlease enter project Length and Width first.');
+    return;
+  }
+
+  // Number of panels: each 2ft wide, along the project LENGTH
+  const exact = length / 2;
+  const nPanels = Math.ceil(exact);
+  const hasOffcut = (nPanels !== exact);           // uneven → last is a tailor-made offcut
+  const offcutWidth = hasOffcut ? +(length - (nPanels-1)*2).toFixed(2) : 2;
+  const panelLen = width;                          // each panel's length = project width
+
+  // For 'mix', ask how many of the panels are glass (rest are V)
+  let nGlass = nPanels, nV = 0;
+  if(mode==='v'){ nGlass=0; nV=nPanels; }
+  else if(mode==='mix'){
+    const ans = prompt(`共 ${nPanels} 塊面板。\nTotal ${nPanels} panels. How many are GLASS? (rest = V-panel)\n請輸入玻璃塊數 (其餘為V板):`, Math.ceil(nPanels/2));
+    if(ans===null) return;               // cancelled
+    nGlass = Math.max(0, Math.min(nPanels, parseInt(ans)||0));
+    nV = nPanels - nGlass;
+  }
+
+  const col = structColour();
+  const cz = colourZh();
+  const scRe = col==='black' ? 'sc58_blk' : 'sc58_wht';   // 5/8" screw colour
+  const sc2 = col==='black' ? 'sc2' : 'sc2';              // 2" screw (single sku in list)
+
+  // Clear any previous auto-built panel rows + auto panel-hardware, then rebuild
+  rows.panels = rows.panels.filter(r=>!r.autoPanel);
+  rows.hardware = rows.hardware.filter(r=>!r.autoPanel);
+  const beforeBeamsTbar = rows.beams.filter(r=>r.auto==='tbar');
+  rows.beams = rows.beams.filter(r=>r.auto!=='tbar');
+
+  const splitNote = panelLen>12 ? ` (>12ft 分割 12+${(panelLen-12).toFixed(1)})` : '';
+
+  // ── GLASS panels ──
+  if(nGlass>0){
+    // default glass type = clear; user can change the product after
+    rows.panels.push({pid:'clr_gl', price:2.0, len:panelLen, qty:nGlass, total:0, ftotal:0,
+                      autoPanel:true, note:'玻璃'+splitNote});
+    // 2 tape + 6 screws per glass panel
+    rows.hardware.push({pid:'tape', price:7.5, len:0, qty:nGlass*2, total:0, ftotal:0, autoPanel:true, note:`雙面膠 ${cz} (${nGlass}×2)`});
+    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:nGlass*6, total:0, ftotal:0, autoPanel:true, note:`5/8"螺絲 ${cz} (${nGlass}×6)`});
+    // over 12ft → 1 glass splice per split panel
+    if(panelLen>12){
+      rows.hardware.push({pid:'glspl', price:2.8, len:0, qty:nGlass, total:0, ftotal:0, autoPanel:true, note:`玻璃接駁 (每塊分割×1)`});
+    }
+  }
+
+  // ── V panels ──
+  if(nV>0){
+    const vpid = col==='black' ? 'blk_v' : 'alm_v';
+    const vprice = col==='black' ? 4.5 : 2.6;
+    rows.panels.push({pid:vpid, price:vprice, len:panelLen, qty:nV, total:0, ftotal:0,
+                      autoPanel:true, note:'V板 '+cz});
+    // 8 screws per V panel
+    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:nV*8, total:0, ftotal:0, autoPanel:true, note:`5/8"螺絲 ${cz} V板 (${nV}×8)`});
+  }
+
+  // ── T-bars: total panels + 1, length = panel length ──
+  const nTbar = nPanels + 1;
+  rows.beams.push({pid:'tbar', price:3.1, len:panelLen, qty:nTbar, total:0, ftotal:0,
+                   auto:'tbar', note:`T型梁 ${cz} (面板${nPanels}+1)`});
+
+  // ── Post hardware: from auto post count (12 screws + 2 shoe + 4×2" each) ──
+  const postRow = rows.beams.find(r=>r.auto==='post');
+  const nPost = postRow ? postRow.qty : 0;
+  if(nPost>0){
+    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:nPost*12, total:0, ftotal:0, autoPanel:true, note:`5/8"螺絲 ${cz} 柱 (${nPost}×12)`});
+    rows.hardware.push({pid:'pshoe', price:2.0, len:0, qty:nPost*2, total:0, ftotal:0, autoPanel:true, note:`柱碼 ${cz} (${nPost}×2)`});
+    rows.hardware.push({pid:'sc2', price:0.12, len:0, qty:nPost*4, total:0, ftotal:0, autoPanel:true, note:`2"螺絲 固定地面 (${nPost}×4)`});
+  }
+
+  renderRows();
+  calcAll();
+
+  // Tailor-made pop-up for the offcut
+  if(hasOffcut){
+    alert(`⚠️ 有 1 塊面板需要訂造\n1 panel needs to be tailor-made.\n\n專案長度 ${length}ft ÷ 2ft = ${exact} → ${nPanels} 塊\n最後一塊寬度 last panel width: ${offcutWidth}ft (非標準2ft)`);
+  }
+}
+
 function fmt(n){return '$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
 function fmtShort(n){return n>0?'$'+n.toFixed(2):'—';}
 
@@ -390,7 +508,7 @@ function makeSelect(opts, selectedId, onchange){
 function renderRows(){
   // PANELS: product | price | length(ft) | qty(strips) | sqft | total | del
   document.getElementById('rows-panels').innerHTML = rows.panels.map((r,i)=>`
-    <div class="item-row panel-row">
+    <div class="item-row panel-row"${r.autoPanel?' style="background:#eef5fb"':''}>
       ${makeSelect(PANELS, r.pid, `onProdChange('panels',${i},this)`)}
       <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$/ft" oninput="onValChange('panels',${i},'price',this.value)">
       <input class="ni" type="number" inputmode="decimal" min="0" step="0.5" value="${r.len||''}" placeholder="ft" oninput="onValChange('panels',${i},'len',this.value)">
@@ -398,7 +516,7 @@ function renderRows(){
       <span class="line-amt sqft-col ${r.sqft>0?'':'zero'}" id="pft-${i}">${r.sqft>0?r.sqft+' sqft':'—'}</span>
       <span class="line-amt ${r.total>0?'':'zero'}" id="ptot-${i}">${fmtShort(r.total||0)}</span>
       <button class="del-btn" onclick="delRow('panels',${i})">✕</button>
-    </div>`).join('');
+    </div>${r.note?`<div style="font-size:10px;color:#3B7BB5;padding:0 0 4px 2px;margin-top:-2px">✨ 自動 ${r.note}</div>`:''}`).join('');
 
   // BEAMS: product | price | length(ft) | qty | total_ft | total | del
   document.getElementById('rows-beams').innerHTML = rows.beams.map((r,i)=>`
@@ -410,17 +528,17 @@ function renderRows(){
       <span class="line-amt ${r.ftotal>0?'':'zero'}" id="bft-${i}">${r.ftotal>0?r.ftotal+' ft':'—'}</span>
       <span class="line-amt ${r.total>0?'':'zero'}" id="btot-${i}">${fmtShort(r.total||0)}</span>
       <button class="del-btn" onclick="delRow('beams',${i})">✕</button>
-    </div>${r.auto?`<div style="font-size:10px;color:var(--amber);padding:0 0 4px 2px;margin-top:-2px">⚡ 自動${r.auto==='4in1'?' 4in1 (跟隨長度)':' 柱 (每12ft一支+兩端)'}</div>`:''}`).join('');
+    </div>${r.auto?`<div style="font-size:10px;color:var(--amber);padding:0 0 4px 2px;margin-top:-2px">⚡ 自動${r.auto==='4in1'?' 4in1 (跟隨長度)':r.auto==='post'?' 柱 (每12ft一支+兩端)':r.auto==='tbar'?(' '+(r.note||'T型梁')):''}</div>`:''}`).join('');
 
   // HARDWARE: product | price | qty | total | del
   document.getElementById('rows-hardware').innerHTML = rows.hardware.map((r,i)=>`
-    <div class="item-row unit-row">
+    <div class="item-row unit-row"${r.autoPanel?' style="background:#eef5fb"':''}>
       ${makeSelect(HARDWARE, r.pid, `onProdChange('hardware',${i},this)`)}
       <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$" oninput="onValChange('hardware',${i},'price',this.value)">
       <input class="ni" type="number" inputmode="numeric" min="0" step="1" value="${r.qty||''}" placeholder="qty" oninput="onValChange('hardware',${i},'qty',this.value)">
       <span class="line-amt ${r.total>0?'':'zero'}" id="htot-${i}">${fmtShort(r.total||0)}</span>
       <button class="del-btn" onclick="delRow('hardware',${i})">✕</button>
-    </div>`).join('');
+    </div>${r.note?`<div style="font-size:10px;color:#3B7BB5;padding:0 0 4px 2px;margin-top:-2px">✨ 自動 ${r.note}</div>`:''}`).join('');
 
   // LABOUR: item | rate | qty/sqft | total | del
   const sqft = getSqft();
