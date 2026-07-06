@@ -64,6 +64,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 .bb-glass{background:#3B7BB5}.bb-glass:hover{background:#316799}
 .bb-v{background:#3B9B5C}.bb-v:hover{background:#31834D}
 .bb-mix{background:#C89B3C}.bb-mix:hover{background:#AC8531}
+.stock-panel{margin-top:12px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--bg2)}
+.stock-hd{background:#F5EFE6;padding:8px 12px;font-size:13px;font-weight:700;color:#7B5E3A;border-bottom:1px solid var(--border)}
+.stock-line{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px}
+.stock-line.short{background:#FDF3F2}
+.stock-line.ok{background:#F2FBF4}
+.sl-sku{font-weight:700;color:#1A1714;min-width:90px}
+.sl-need,.sl-have{color:#6B6158}
+.sl-tag{margin-left:auto;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px}
+.sl-tag.ok{background:#D4EDDA;color:#1E7E34}
+.sl-tag.alt{background:#FFF3CD;color:#8A6B22}
+.sl-tag.short{background:#F8D7DA;color:#C0392B}
+.stock-note{padding:9px 12px;font-size:11px;color:#9C8F84;line-height:1.5}
 .add-row-btn:hover{background:var(--brand-light);color:var(--brand);border-color:var(--brand-mid)}
 
 /* Panel cols: product select | price | length | qty(strips) | sqft | total */
@@ -160,6 +172,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
         <option value="white">白色 White</option>
       </select>
     </div>
+    <div class="field"><label>柱高 Post Height (ft)</label><input id="postHt" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0" oninput="onDimChange()"></div>
+    <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text2)">
+        <input id="concreteBase" type="checkbox" onchange="onDimChange()" style="width:16px;height:16px">
+        混凝土底座 Concrete base (+2ft/柱)
+      </label>
+    </div>
   </div>
 </div>
 
@@ -233,7 +252,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
     <button class="btn btn-green" onclick="saveQuote()">💾 儲存</button>
     <button class="btn btn-outline" onclick="loadQuote()">📂 載入</button>
     <button class="btn btn-outline" onclick="clearAll()">🗑 清除</button>
+    <button class="btn btn-outline" style="border-color:#C89B3C;color:#8A6B22" onclick="checkStock()">📦 檢查庫存 Check Stock</button>
   </div>
+  <div id="stock-result"></div>
 </div>
 
 </div><!-- /page -->
@@ -374,18 +395,22 @@ function autoBuildStructure(){
   }
 
   // ── Posts row (auto) ──
+  // Post height (length) follows the Post Height input; +2ft if concrete base is marked.
+  const postHt = parseFloat(document.getElementById('postHt').value)||0;
+  const concrete = document.getElementById('concreteBase').checked;
+  const postLen = postHt>0 ? (postHt + (concrete?2:0)) : 10;  // default 10ft if no height yet
   const postCount = calcPosts(length);
   let postRow = rows.beams.find(r=>r.auto==='post');
   if(!postRow){
     const hasManualPost = rows.beams.some(r=>r.pid==='post' && r.auto!=='post');
     if(!hasManualPost){
-      // Post default length 10ft (typical) — user can adjust; qty = post count
-      postRow = {pid:'post', price:3.3, len:10, qty:postCount, total:0, ftotal:0, auto:'post'};
+      postRow = {pid:'post', price:3.3, len:postLen, qty:postCount, total:0, ftotal:0, auto:'post'};
       rows.beams.push(postRow);
     }
   } else {
-    // keep post count in sync with length (unless user manually changed qty)
+    // keep post count + height in sync (unless user manually changed them)
     if(!postRow.qtyEdited) postRow.qty = postCount;
+    if(!postRow.lenEdited && postHt>0) postRow.len = postLen;
   }
 }
 function toggleSec(name){
@@ -498,6 +523,14 @@ function buildPanels(mode){
     screw2Notes.push(`固定地面 ${nPost}×4`);
   }
 
+  // ── Concrete base charge (Rule 4): if marked, add a per-post charge line (manually priced) ──
+  rows.labour = rows.labour.filter(r=>!r.autoPanel);
+  const concreteBase = document.getElementById('concreteBase').checked;
+  if(concreteBase && nPost>0){
+    rows.labour.push({pid:'cement', price:50, isSqft:false, qty:nPost, total:0, autoPanel:true,
+                      note:`混凝土底座/種柱 (${nPost}柱, 每柱+2ft, 請自行調整單價)`});
+  }
+
   // ── Emit pooled screws, rounded UP to next 50 ──
   if(screw58>0){
     const rounded = roundUp(screw58, SCREW_UNIT);
@@ -574,13 +607,13 @@ function renderRows(){
     const isSqft = r.isSqft;
     const qtyVal = isSqft && sqft>0 ? sqft : (r.qty||'');
     const qtyPlaceholder = isSqft ? (sqft>0?sqft+' sqft':'sqft 自動') : 'qty';
-    return `<div class="item-row lab-row">
+    return `<div class="item-row lab-row"${r.autoPanel?' style="background:#eef5fb"':''}>
       ${makeSelect(LABOUR_OPTS, r.pid, `onLabChange(${i},this)`)}
       <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$" oninput="onValChange('labour',${i},'price',this.value)">
       <input class="ni" type="number" inputmode="decimal" min="0" step="0.5" value="${qtyVal}" placeholder="${qtyPlaceholder}" ${isSqft&&sqft>0?'readonly style="background:var(--bg3);color:var(--text3)"':''} oninput="onValChange('labour',${i},'qty',this.value)">
       <span class="line-amt ${r.total>0?'':'zero'}">${fmtShort(r.total||0)}</span>
       <button class="del-btn" onclick="delRow('labour',${i})">✕</button>
-    </div>`;
+    </div>${r.note?`<div style="font-size:10px;color:#3B7BB5;padding:0 0 4px 2px;margin-top:-2px">✨ 自動 ${r.note}</div>`:''}`;
   }).join('');
 }
 
@@ -785,6 +818,103 @@ function showPrint(){
   document.getElementById('overlay').classList.add('show');
 }
 function closeOverlay(){document.getElementById('overlay').classList.remove('show');}
+
+// ══════════════════════════════════════════════════════════════
+// RULE 5 — STOCK CHECK with alternative (any in-stock size ≥ needed)
+// Reads shared inventory stock (bpc_inv_stock, keyed by master SKU) and the
+// master PRODUCTS table (embedded in inventory/index). Since quote.html doesn't
+// carry the full master, we read the master SKU list from localStorage that the
+// inventory app maintains, falling back to a minimal built-in profile size map.
+// ══════════════════════════════════════════════════════════════
+
+// Map quote beam/panel pids → master base SKU (colour-aware)
+function quotePidToBaseSku(pid, colour){
+  const c = colour==='black' ? 'B' : 'W';
+  const map = {
+    '4in1':      colour==='black'?'A01B':'A01W',
+    '4in1_blk':  'A01B', '4in1_wht':'A01W',
+    '6in1':      colour==='black'?'A02B':'A02W',
+    '3in1':      colour==='black'?'A03B':'A03W',
+    '4ibeam':    'PT01'+c, '6ibeam':'PT05'+c, '8ibeam':'PTW09-'+c,
+    'splate':    'PT06'+c,
+    'post':      'PT07'+c,
+    'tbar':      'PT08'+c,
+    'blk_v':     'VP-B', 'alm_v':'VP-W',
+    'clr_gl':'GCL','drk_gl':'GDG','lgt_gl':'GLG'
+  };
+  return map[pid] || null;
+}
+
+function checkStock(){
+  const box = document.getElementById('stock-result');
+  let stock={}, master=[];
+  try{ stock = JSON.parse(localStorage.getItem('bpc_inv_stock')||'{}'); }catch(e){}
+  try{ master = JSON.parse(localStorage.getItem('bpc_master_products')||'[]'); }catch(e){}
+
+  // If inventory hasn't published the master list yet, tell the user how to enable it.
+  const haveMaster = Array.isArray(master) && master.length>0;
+  const colour = structColour();
+
+  // Gather sized items from the quote (beams + panels that map to a sized profile)
+  const checks = [];
+  [['beams',rows.beams],['panels',rows.panels]].forEach(([sec,arr])=>{
+    arr.forEach(r=>{
+      if(!r.pid || !r.qty) return;
+      const base = quotePidToBaseSku(r.pid, colour);
+      if(!base) return;
+      const needLen = Math.ceil(r.len||0);           // profile length needed (ft)
+      checks.push({sec, pid:r.pid, base, needLen, qty:r.qty});
+    });
+  });
+
+  if(checks.length===0){
+    box.innerHTML = `<div class="stock-note">先用建置按鈕產生面板/結構，再檢查庫存。<br>Build panels/structure first, then check stock.</div>`;
+    return;
+  }
+
+  let rowsHtml='', anyIssue=false;
+  checks.forEach(chk=>{
+    // Exact SKU for the size needed
+    const wantSku = chk.needLen>0 ? `${chk.base}-${chk.needLen}ft` : chk.base;
+    const haveQty = stock[wantSku]!==undefined ? stock[wantSku] : (stock[chk.base]||0);
+    const enough = haveQty >= chk.qty;
+
+    let line = `<div class="stock-line ${enough?'ok':'short'}">
+      <span class="sl-sku">${wantSku}</span>
+      <span class="sl-need">需 ${chk.qty}</span>
+      <span class="sl-have">庫存 ${haveQty}</span>`;
+
+    if(enough){
+      line += `<span class="sl-tag ok">✓ 足夠 OK</span>`;
+    } else {
+      anyIssue=true;
+      // Find any in-stock size ≥ needed length, same base SKU, smallest that fits
+      let alt=null;
+      if(haveMaster && chk.needLen>0){
+        const candidates = master
+          .filter(m=>m.base_sku===chk.base && (m.size_ft||0)>=chk.needLen)
+          .map(m=>({sku:m.sku, size:m.size_ft, stock: stock[m.sku]||0}))
+          .filter(m=>m.stock>=chk.qty)
+          .sort((a,b)=>a.size-b.size);
+        if(candidates.length) alt=candidates[0];
+      }
+      if(alt){
+        line += `<span class="sl-tag alt">↑ 建議改用 ${alt.sku} (庫存 ${alt.stock}, ${alt.size}ft 剪短)</span>`;
+      } else {
+        line += `<span class="sl-tag short">✗ 缺貨 out of stock${haveMaster?' · 無替代':' · (啟用庫存清單以取得替代建議)'}</span>`;
+      }
+    }
+    line += `</div>`;
+    rowsHtml += line;
+  });
+
+  box.innerHTML = `
+    <div class="stock-panel">
+      <div class="stock-hd">📦 庫存檢查 Stock Check ${anyIssue?'<span style="color:#C0392B">· 有缺貨</span>':'<span style="color:#1E7E34">· 全部足夠</span>'}</div>
+      ${rowsHtml}
+      ${!haveMaster?`<div class="stock-note">提示：替代建議需要庫存App發佈主清單。請在庫存頁面開啟後再檢查。<br>Tip: alternative suggestions need the inventory app's master list.</div>`:''}
+    </div>`;
+}
 
 // ── Init ──
 document.getElementById('date').value=new Date().toLocaleDateString('en-CA');
