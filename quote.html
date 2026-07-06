@@ -434,24 +434,37 @@ function buildPanels(mode){
   const col = structColour();
   const cz = colourZh();
   const scRe = col==='black' ? 'sc58_blk' : 'sc58_wht';   // 5/8" screw colour
-  const sc2 = col==='black' ? 'sc2' : 'sc2';              // 2" screw (single sku in list)
 
   // Clear any previous auto-built panel rows + auto panel-hardware, then rebuild
   rows.panels = rows.panels.filter(r=>!r.autoPanel);
   rows.hardware = rows.hardware.filter(r=>!r.autoPanel);
-  const beforeBeamsTbar = rows.beams.filter(r=>r.auto==='tbar');
   rows.beams = rows.beams.filter(r=>r.auto!=='tbar');
 
   const splitNote = panelLen>12 ? ` (>12ft 分割 12+${(panelLen-12).toFixed(1)})` : '';
+
+  // Accumulators — screws are pooled then rounded UP to the next 50 (sold in 50s)
+  const TAPE_ROLL_FT = 98;          // each double-side tape roll = 98ft
+  const SCREW_UNIT = 50;            // screws sold in 50pcs units
+  let screw58 = 0;                  // 5/8" screws (raw count, pooled)
+  let screw2 = 0;                   // 2" screws (raw count, pooled)
+  const screw58Notes = [];
+  const screw2Notes = [];
+  const roundUp = (n,u)=> n>0 ? Math.ceil(n/u)*u : 0;
 
   // ── GLASS panels ──
   if(nGlass>0){
     // default glass type = clear; user can change the product after
     rows.panels.push({pid:'clr_gl', price:2.0, len:panelLen, qty:nGlass, total:0, ftotal:0,
                       autoPanel:true, note:'玻璃'+splitNote});
-    // 2 tape + 6 screws per glass panel
-    rows.hardware.push({pid:'tape', price:7.5, len:0, qty:nGlass*2, total:0, ftotal:0, autoPanel:true, note:`雙面膠 ${cz} (${nGlass}×2)`});
-    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:nGlass*6, total:0, ftotal:0, autoPanel:true, note:`5/8"螺絲 ${cz} (${nGlass}×6)`});
+    // Double-side tape: 2 sides along the length of each glass panel.
+    // Total tape length ÷ 98ft per roll, round up.
+    const tapeFt = nGlass * panelLen * 2;
+    const tapeRolls = Math.ceil(tapeFt / TAPE_ROLL_FT);
+    rows.hardware.push({pid:'tape', price:7.5, len:0, qty:tapeRolls, total:0, ftotal:0, autoPanel:true,
+                        note:`雙面膠 ${cz} (${nGlass}塊×${panelLen}ft×2邊=${tapeFt}ft ÷98ft/卷=${tapeRolls}卷)`});
+    // 6 screws per glass panel (pooled)
+    screw58 += nGlass * 6;
+    screw58Notes.push(`玻璃 ${nGlass}×6`);
     // over 12ft → 1 glass splice per split panel
     if(panelLen>12){
       rows.hardware.push({pid:'glspl', price:2.8, len:0, qty:nGlass, total:0, ftotal:0, autoPanel:true, note:`玻璃接駁 (每塊分割×1)`});
@@ -464,8 +477,9 @@ function buildPanels(mode){
     const vprice = col==='black' ? 4.5 : 2.6;
     rows.panels.push({pid:vpid, price:vprice, len:panelLen, qty:nV, total:0, ftotal:0,
                       autoPanel:true, note:'V板 '+cz});
-    // 8 screws per V panel
-    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:nV*8, total:0, ftotal:0, autoPanel:true, note:`5/8"螺絲 ${cz} V板 (${nV}×8)`});
+    // 8 screws per V panel (pooled)
+    screw58 += nV * 8;
+    screw58Notes.push(`V板 ${nV}×8`);
   }
 
   // ── T-bars: total panels + 1, length = panel length ──
@@ -477,9 +491,23 @@ function buildPanels(mode){
   const postRow = rows.beams.find(r=>r.auto==='post');
   const nPost = postRow ? postRow.qty : 0;
   if(nPost>0){
-    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:nPost*12, total:0, ftotal:0, autoPanel:true, note:`5/8"螺絲 ${cz} 柱 (${nPost}×12)`});
+    screw58 += nPost * 12;
+    screw58Notes.push(`柱 ${nPost}×12`);
     rows.hardware.push({pid:'pshoe', price:2.0, len:0, qty:nPost*2, total:0, ftotal:0, autoPanel:true, note:`柱碼 ${cz} (${nPost}×2)`});
-    rows.hardware.push({pid:'sc2', price:0.12, len:0, qty:nPost*4, total:0, ftotal:0, autoPanel:true, note:`2"螺絲 固定地面 (${nPost}×4)`});
+    screw2 += nPost * 4;
+    screw2Notes.push(`固定地面 ${nPost}×4`);
+  }
+
+  // ── Emit pooled screws, rounded UP to next 50 ──
+  if(screw58>0){
+    const rounded = roundUp(screw58, SCREW_UNIT);
+    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:rounded, total:0, ftotal:0, autoPanel:true,
+                        note:`5/8"螺絲 ${cz} (需${screw58}pcs: ${screw58Notes.join(' + ')} → 進位${rounded}, 每50pcs一單位)`});
+  }
+  if(screw2>0){
+    const rounded = roundUp(screw2, SCREW_UNIT);
+    rows.hardware.push({pid:'sc2', price:0.12, len:0, qty:rounded, total:0, ftotal:0, autoPanel:true,
+                        note:`2"螺絲 (需${screw2}pcs: ${screw2Notes.join(' + ')} → 進位${rounded}, 每50pcs一單位)`});
   }
 
   renderRows();
