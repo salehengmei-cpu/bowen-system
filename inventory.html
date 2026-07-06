@@ -218,6 +218,15 @@ function resetProds() { customProducts = null; lsSet('bpc_custom_products', null
 
 let stock=lsGet('bpc_inv_stock',{}), history=lsGet('bpc_inv_hist',[]);
 function saveAll(){lsSet('bpc_inv_stock',stock);lsSet('bpc_inv_hist',history);}
+// Publish a lightweight master list (sku, base_sku, size_ft) so the Quote app
+// can suggest in-stock alternative sizes when a material is out of stock.
+function publishMasterForQuote(){
+  try{
+    const lite = getProducts().map(p=>({sku:p.sku, base_sku:p.base_sku, size_ft:p.size_ft}));
+    lsSet('bpc_master_products', lite);
+  }catch(e){}
+}
+publishMasterForQuote();
 function getStock(sku){return stock[sku]||0;}
 function getMin(sku){const p=getProducts().find(p=>p.sku===sku);return p?p.min_stock:5;}
 function getStatus(sku){const s=getStock(sku),m=getMin(sku);if(s===0)return'zero';if(s<=m)return'low';return'ok';}
