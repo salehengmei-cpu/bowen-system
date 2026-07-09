@@ -1076,27 +1076,54 @@ function openAutoFill(id){
   const usableH = CONTAINER.H - (CONTAINER.ceilClear||0);
   const contDims = [usableL, CONTAINER.W, usableH].sort((a,b)=>b-a);
 
-  // Baseline packing plan for the current order, and how many pieces it holds.
+  // Build the base packing plan ONCE, then derive a floor-height map from it.
+  // We test candidates against this map cheaply (no full repack per product),
+  // so the whole thing stays fast on a phone.
+  const GRID = 10;
+  const GW = Math.ceil(usableL / GRID);
+  const GD = Math.ceil(CONTAINER.W / GRID);
+  const floor = [];
+  for (let i=0;i<GW;i++) floor[i] = new Float32Array(GD);
   const basePlan = buildMap(o.items);
-  const basePlaced = basePlan.length;
+  basePlan.forEach(b => {
+    const gx0 = Math.round(b.x/GRID), gy0 = Math.round(b.y/GRID);
+    const gl = Math.ceil(b.l/GRID), gw = Math.ceil(b.w/GRID);
+    for(let dx=0;dx<gl;dx++) for(let dy=0;dy<gw;dy++){
+      const xi=gx0+dx, yi=gy0+dy;
+      if(xi<GW && yi<GD){ const top=b.z+b.h; if(top>floor[xi][yi]) floor[xi][yi]=top; }
+    }
+  });
 
-  // Report remaining length as the deepest UNUSED span across the floor, not the
-  // single furthest point any one item reaches (items also pack side-by-side and
-  // stacked, so the old "furthest reach" wildly underestimated free space).
+  // Deepest unused span along the length (for display only)
   let usedLen = 0;
-  (basePlan||[]).forEach(b => { if (b.x + b.l > usedLen) usedLen = b.x + b.l; });
+  basePlan.forEach(b => { if (b.x + b.l > usedLen) usedLen = b.x + b.l; });
   const remainLen = Math.max(0, usableL - usedLen);
 
-  // Only container-ready products (with real packing dimensions)
-  const candidates = getProducts().filter(p=>p.has_dims);
+  // Fast check: can one piece of footprint (fl×fw, height h) rest anywhere with
+  // its top under the usable ceiling? Scans the pre-built floor map only.
+  function fitsSomewhere(fl, fw, h){
+    const gL = Math.ceil(fl/GRID), gW = Math.ceil(fw/GRID);
+    if(gL>GW || gW>GD) return false;
+    for(let gx=0; gx<=GW-gL; gx++){
+      if(gx*GRID + fl > usableL + 0.05) break;
+      for(let gy=0; gy<=GD-gW; gy++){
+        if(gy*GRID + fw > CONTAINER.W + 0.05) break;
+        let maxFloor=0;
+        for(let dx=0;dx<gL && maxFloor<=usableH;dx++){
+          for(let dy=0;dy<gW;dy++){ const f=floor[gx+dx][gy+dy]; if(f>maxFloor)maxFloor=f; }
+        }
+        if(maxFloor + h <= usableH) return true;
+      }
+    }
+    return false;
+  }
 
+  const candidates = getProducts().filter(p=>p.has_dims);
   const catRank = {'PATIO COVER PROFILES':0,'GLASS':1,'GUTTERS & DRAINAGE':2,'HARDWARE & FASTENERS':3,'SEALANTS & ADHESIVES':4};
   const withFit = candidates.map(p=>{
-    // Rotation-aware: item's sorted dims must each fit within the usable interior
     const itemDims = [p.l||0, p.w||0, p.h||0].sort((a,b)=>b-a);
     const dimensionallyFits = itemDims[0] <= contDims[0] && itemDims[1] <= contDims[1] && itemDims[2] <= contDims[2];
 
-    // Volume / weight ceilings (upper bound on how many could ever fit)
     const unitVol = (p.l/100)*(p.w/100)*(p.h/100);
     const byVol = unitVol>0 ? Math.floor(remainVol/unitVol) : 0;
     const byWt  = p.wt>0 ? Math.floor(remainWt/p.wt) : 9999;
@@ -1104,15 +1131,11 @@ function openAutoFill(id){
 
     if(!dimensionallyFits) canFit = 0;
 
-    // Physical check: does at least ONE more of this item actually place into the
-    // real packing plan? This is what makes suggestions match the load map.
+    // Physical check against the pre-built floor map, trying both orientations.
     if(canFit>0){
-      const testItems = [...o.items, {sku:p.sku, desc:p.desc||p.name_zh||p.sku, l:p.l, w:p.w, h:p.h, qty:1, wt:p.wt}];
-      const testPlan = buildMap(testItems);
-      const placedOneMore = testPlan.length > basePlaced && (testPlan.unplaced||0)===0;
-      if(!placedOneMore) canFit = 0;
+      const placeable = fitsSomewhere(p.l, p.w, p.h) || fitsSomewhere(p.w, p.l, p.h);
+      if(!placeable) canFit = 0;
     }
-
     return {...p, unitVol, canFit};
   }).filter(p=>p.canFit>0)
     .sort((a,b)=>(catRank[a.category]??9)-(catRank[b.category]??9) || b.canFit-a.canFit);
