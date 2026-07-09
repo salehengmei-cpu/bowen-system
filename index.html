@@ -749,79 +749,104 @@ function checkStacking(o, pl){
   return warns;
 }
 
-// ── Smart 3D Load Map ──
-// Strategy: pack items into the container using a 2D height-map.
-// floorGrid[xi][yi] = current stack height at grid cell (xi, yi)
-// Items are placed at the lowest possible z across their full footprint,
-// preferring positions closest to the rear wall (x=0) and left (y=0).
+// ── Smart 3D Load Map (rotation-aware) ──
+// Packs items into the container using a 2D floor height-map.
+// floor[xi][yi] = current stack height (cm) at that grid cell.
+// Each piece is placed at the lowest z across its footprint, trying BOTH
+// horizontal orientations (length-along-container vs width-along-container),
+// so long profiles correctly lie lengthwise down the 1203cm container.
+// Pieces are placed one at a time; if one orientation/position fails, the
+// other is tried before marking the piece unplaced.
 function buildMap(items) {
   const pl = [];
-  const GRID = 10; // cm per grid cell (balance between accuracy and speed)
-  const GW = Math.ceil(CONTAINER.L / GRID); // grid width (length axis)
-  const GD = Math.ceil(CONTAINER.W / GRID); // grid depth (width axis)
+  const GRID = 10; // cm per grid cell
+  const GW = Math.ceil(CONTAINER.L / GRID); // cells along length (X)
+  const GD = Math.ceil(CONTAINER.W / GRID); // cells along width (Y)
 
   // 2D floor height map
   const floor = [];
   for (let i = 0; i < GW; i++) { floor[i] = new Float32Array(GD); }
 
-  // Sort items by volume descending — place largest first for better packing
-  const sorted = [...(items||[])].map((it, origIdx) => ({...it, origIdx}))
-    .sort((a, b) => (b.l*b.w*b.h) - (a.l*a.w*a.h));
-
-  let unplaced = 0;         // count of item-pieces that couldn't fit
-  const unplacedBySku = {}; // sku -> count not placed
-  let maxStackH = 0;        // tallest stack reached (cm)
-
-  sorted.forEach(it => {
-    const color = PALETTE[it.origIdx % PALETTE.length];
-    const l = it.l||1, w = it.w||1, h = it.h||1;
-    const gL = Math.ceil(l / GRID); // item footprint in grid cells (length)
-    const gW = Math.ceil(w / GRID); // item footprint in grid cells (width)
-
+  // Expand items into individual pieces, tagged with original colour index.
+  // Sort by footprint area descending (largest first = better packing),
+  // then by height descending so tall items settle before short fillers.
+  const pieces = [];
+  (items||[]).forEach((it, origIdx) => {
+    const l = Math.max(1, it.l||1), w = Math.max(1, it.w||1), h = Math.max(1, it.h||1);
     for (let q = 0; q < (it.qty||0); q++) {
-      let bestX = -1, bestY = -1, bestZ = Infinity;
+      pieces.push({ l, w, h, origIdx, sku: it.sku||'?' });
+    }
+  });
+  pieces.sort((a,b) => (b.l*b.w) - (a.l*a.w) || (b.h - a.h));
 
-      // Scan all valid positions in grid
+  let unplaced = 0;
+  const unplacedBySku = {};
+  let maxStackH = 0;
+
+  // Try to place one piece in a given orientation (footprint fl × fw).
+  // Returns {x,y,z} of the best spot, or null if none fits.
+  function findSpot(fl, fw, h) {
+    const gL = Math.ceil(fl / GRID);
+    const gW = Math.ceil(fw / GRID);
+    if (gL > GW || gW > GD) return null; // footprint doesn't fit container floor
+    let best = null;
+    for (let gx = 0; gx <= GW - gL; gx++) {
+      // Real length edge must stay within the container
+      if (gx*GRID + fl > CONTAINER.L + 0.05) break;
       for (let gy = 0; gy <= GD - gW; gy++) {
-        for (let gx = 0; gx <= GW - gL; gx++) {
-          // Find max floor height across this item's footprint
-          let maxFloor = 0;
+        // Real width edge must stay within the container
+        if (gy*GRID + fw > CONTAINER.W + 0.05) break;
+        // Max floor height under this footprint = the z the piece would rest at
+        let maxFloor = 0;
+        for (let dx = 0; dx < gL && maxFloor <= CONTAINER.H; dx++) {
           for (let dy = 0; dy < gW; dy++) {
-            for (let dx = 0; dx < gL; dx++) {
-              const h2 = floor[gx+dx][gy+dy];
-              if (h2 > maxFloor) maxFloor = h2;
-            }
-          }
-          // Check if item fits vertically
-          if (maxFloor + h > CONTAINER.H) continue;
-          // Prefer lowest z, then closest to rear (smallest x), then smallest y
-          if (maxFloor < bestZ || (maxFloor === bestZ && gx < Math.round(bestX/GRID)) || (maxFloor === bestZ && gx === Math.round(bestX/GRID) && gy < Math.round(bestY/GRID))) {
-            bestZ = maxFloor;
-            bestX = gx * GRID;
-            bestY = gy * GRID;
+            const f = floor[gx+dx][gy+dy];
+            if (f > maxFloor) maxFloor = f;
           }
         }
+        if (maxFloor + h > CONTAINER.H) continue; // would poke through ceiling
+        // Prefer lowest resting height, then rear (small x), then left (small y)
+        if (!best || maxFloor < best.z ||
+            (maxFloor === best.z && gx < best.gx) ||
+            (maxFloor === best.z && gx === best.gx && gy < best.gy)) {
+          best = { gx, gy, z: maxFloor, gL, gW, h };
+        }
       }
+    }
+    return best;
+  }
 
-      if (bestX === -1) {
-        // Couldn't place this piece (and, by sorting, likely the rest of this SKU too)
-        const remaining = (it.qty||0) - q;
-        unplaced += remaining;
-        unplacedBySku[it.sku||'?'] = (unplacedBySku[it.sku||'?']||0) + remaining;
-        break;
-      }
+  pieces.forEach(pc => {
+    const color = PALETTE[pc.origIdx % PALETTE.length];
+    // Two horizontal orientations: (l along X, w along Y) and (w along X, l along Y).
+    // Height stays vertical (items aren't tipped onto their side here, which
+    // matches how long profiles and panels are actually loaded flat/lengthwise).
+    const orientations = [
+      { fl: pc.l, fw: pc.w },
+      { fl: pc.w, fw: pc.l }
+    ];
 
-      pl.push({ x: bestX, y: bestY, z: bestZ, l, w, h, color, label: it.sku||'?' });
-      if (bestZ + h > maxStackH) maxStackH = bestZ + h;
+    let chosen = null, chosenOri = null;
+    orientations.forEach(ori => {
+      const spot = findSpot(ori.fl, ori.fw, pc.h);
+      if (spot && (!chosen || spot.z < chosen.z)) { chosen = spot; chosenOri = ori; }
+    });
 
-      // Update floor heights
-      const gx0 = Math.round(bestX / GRID);
-      const gy0 = Math.round(bestY / GRID);
-      for (let dy = 0; dy < gW; dy++) {
-        for (let dx = 0; dx < gL; dx++) {
-          if (gx0+dx < GW && gy0+dy < GD) {
-            floor[gx0+dx][gy0+dy] = bestZ + h;
-          }
+    if (!chosen) {
+      unplaced++;
+      unplacedBySku[pc.sku] = (unplacedBySku[pc.sku]||0) + 1;
+      return;
+    }
+
+    const x = chosen.gx * GRID, y = chosen.gy * GRID, z = chosen.z;
+    pl.push({ x, y, z, l: chosenOri.fl, w: chosenOri.fw, h: pc.h, color, label: pc.sku });
+    if (z + pc.h > maxStackH) maxStackH = z + pc.h;
+
+    // Raise the floor under the placed footprint
+    for (let dx = 0; dx < chosen.gL; dx++) {
+      for (let dy = 0; dy < chosen.gW; dy++) {
+        if (chosen.gx+dx < GW && chosen.gy+dy < GD) {
+          floor[chosen.gx+dx][chosen.gy+dy] = z + pc.h;
         }
       }
     }
