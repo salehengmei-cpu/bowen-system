@@ -1071,46 +1071,57 @@ function openAutoFill(id){
   const remainVol = Math.max(0, usable - vol);
   const remainWt = Math.max(0, CONTAINER.maxWt - wt);
 
-  // How much lengthwise room is left along the container floor.
-  // Estimate used length from the packing plan (how far items reach down the container).
-  const plan = buildMap(o.items);
-  let usedLen = 0;
-  (plan||[]).forEach(b => { if (b.x + b.l > usedLen) usedLen = b.x + b.l; });
-  const remainLen = Math.max(0, CONTAINER.L - usedLen);
+  // Usable interior after ceiling + door clearance (matches the packing engine)
+  const usableL = CONTAINER.L - (CONTAINER.doorClear||0);
+  const usableH = CONTAINER.H - (CONTAINER.ceilClear||0);
+  const contDims = [usableL, CONTAINER.W, usableH].sort((a,b)=>b-a);
 
-  // Container's sorted dims (for rotation-aware max-length check)
-  const contDims = [CONTAINER.L, CONTAINER.W, CONTAINER.H].sort((a,b)=>b-a);
+  // Baseline packing plan for the current order, and how many pieces it holds.
+  const basePlan = buildMap(o.items);
+  const basePlaced = basePlan.length;
+
+  // Report remaining length as the deepest UNUSED span across the floor, not the
+  // single furthest point any one item reaches (items also pack side-by-side and
+  // stacked, so the old "furthest reach" wildly underestimated free space).
+  let usedLen = 0;
+  (basePlan||[]).forEach(b => { if (b.x + b.l > usedLen) usedLen = b.x + b.l; });
+  const remainLen = Math.max(0, usableL - usedLen);
 
   // Only container-ready products (with real packing dimensions)
   const candidates = getProducts().filter(p=>p.has_dims);
 
   const catRank = {'PATIO COVER PROFILES':0,'GLASS':1,'GUTTERS & DRAINAGE':2,'HARDWARE & FASTENERS':3,'SEALANTS & ADHESIVES':4};
   const withFit = candidates.map(p=>{
-    // Rotation-aware: item's sorted dims must each fit within container's sorted dims
+    // Rotation-aware: item's sorted dims must each fit within the usable interior
     const itemDims = [p.l||0, p.w||0, p.h||0].sort((a,b)=>b-a);
     const dimensionallyFits = itemDims[0] <= contDims[0] && itemDims[1] <= contDims[1] && itemDims[2] <= contDims[2];
 
-    // The item's longest side lies along the container length, so it needs that much remaining length
-    const itemLongest = itemDims[0];
-    const fitsRemainingLength = itemLongest <= remainLen + 1; // +1cm tolerance
-
+    // Volume / weight ceilings (upper bound on how many could ever fit)
     const unitVol = (p.l/100)*(p.w/100)*(p.h/100);
     const byVol = unitVol>0 ? Math.floor(remainVol/unitVol) : 0;
     const byWt  = p.wt>0 ? Math.floor(remainWt/p.wt) : 9999;
     let canFit = Math.max(0, Math.min(byVol, byWt));
 
-    // If the item can't fit in the remaining length at all, it can't be suggested
-    if(!dimensionallyFits || !fitsRemainingLength) canFit = 0;
+    if(!dimensionallyFits) canFit = 0;
 
-    return {...p, unitVol, canFit, itemLongest};
+    // Physical check: does at least ONE more of this item actually place into the
+    // real packing plan? This is what makes suggestions match the load map.
+    if(canFit>0){
+      const testItems = [...o.items, {sku:p.sku, desc:p.desc||p.name_zh||p.sku, l:p.l, w:p.w, h:p.h, qty:1, wt:p.wt}];
+      const testPlan = buildMap(testItems);
+      const placedOneMore = testPlan.length > basePlaced && (testPlan.unplaced||0)===0;
+      if(!placedOneMore) canFit = 0;
+    }
+
+    return {...p, unitVol, canFit};
   }).filter(p=>p.canFit>0)
     .sort((a,b)=>(catRank[a.category]??9)-(catRank[b.category]??9) || b.canFit-a.canFit);
 
   document.getElementById('af-sub').innerHTML =
-    `剩餘空間：<b>${remainVol.toFixed(1)} m³</b> · 剩餘長度：<b>${Math.round(remainLen)} cm</b> · 剩餘載重：<b>${Math.round(remainWt).toLocaleString()} kg</b><br>以下產品長度可裝入剩餘空間，建議數量可自行調整後加入。`;
+    `剩餘空間：<b>${remainVol.toFixed(1)} m³</b> · 剩餘長度：<b>${Math.round(remainLen)} cm</b> · 剩餘載重：<b>${Math.round(remainWt).toLocaleString()} kg</b><br>以下產品可實際裝入剩餘空間，建議數量可自行調整後加入。`;
 
   if(!withFit.length){
-    document.getElementById('af-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">貨櫃已滿或沒有長度合適的產品可裝入。</div>';
+    document.getElementById('af-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">貨櫃已滿或沒有可裝入的產品。</div>';
   } else {
     document.getElementById('af-list').innerHTML = withFit.map(p=>`
       <div class="af-item">
