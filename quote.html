@@ -377,21 +377,45 @@ function calcPosts(length){
 // Non-destructive: only creates the auto rows once, then keeps them in sync with Length.
 function autoBuildStructure(){
   const length = parseFloat(document.getElementById('len').value)||0;
-  if(length<=0) return;
+  const width  = parseFloat(document.getElementById('wid').value)||0;
+  if(length<=0 && width<=0) return;
+
+  const col = (document.getElementById('structColor')||{}).value || 'black';
+  const cz  = col==='black' ? '黑' : '白';
 
   // ── 4in1 beam row (auto) ──
   // Find an existing auto-4in1 row (flagged with r.auto==='4in1')
-  let beamRow = rows.beams.find(r=>r.auto==='4in1');
-  if(!beamRow){
-    // Only auto-create if user hasn't already manually added a 4in1 variant
-    const hasManual4in1 = rows.beams.some(r=>['4in1','4in1_blk','4in1_wht'].includes(r.pid));
-    if(!hasManual4in1){
-      beamRow = {pid:'4in1', price:12.0, len:length, qty:1, total:0, ftotal:0, auto:'4in1'};
-      rows.beams.unshift(beamRow);
+  if(length>0){
+    let beamRow = rows.beams.find(r=>r.auto==='4in1');
+    if(!beamRow){
+      // Only auto-create if user hasn't already manually added a 4in1 variant
+      const hasManual4in1 = rows.beams.some(r=>['4in1','4in1_blk','4in1_wht'].includes(r.pid));
+      if(!hasManual4in1){
+        beamRow = {pid:'4in1', price:12.0, len:length, qty:1, total:0, ftotal:0, auto:'4in1'};
+        rows.beams.unshift(beamRow);
+      }
+    } else {
+      // keep length in sync with patio length (unless user changed it manually)
+      if(!beamRow.lenEdited) beamRow.len = length;
     }
-  } else {
-    // keep length in sync with patio length (unless user changed it manually)
-    if(!beamRow.lenEdited) beamRow.len = length;
+  }
+
+  // ── RULE 1: Side panels (auto) ──
+  // When width is entered: 2 pcs, same length as the width, same colour as structure.
+  if(width>0){
+    let sideRow = rows.beams.find(r=>r.auto==='side');
+    if(!sideRow){
+      const hasManualSide = rows.beams.some(r=>r.pid==='splate' && r.auto!=='side');
+      if(!hasManualSide){
+        sideRow = {pid:'splate', price:2.45, len:width, qty:2, total:0, ftotal:0,
+                   auto:'side', note:`側板 ${cz} (2支 × 寬度 ${width}ft)`};
+        rows.beams.push(sideRow);
+      }
+    } else {
+      if(!sideRow.lenEdited) sideRow.len = width;   // follows the width
+      if(!sideRow.qtyEdited) sideRow.qty = 2;       // always 2 pcs
+      sideRow.note = `側板 ${cz} (2支 × 寬度 ${width}ft)`;
+    }
   }
 
   // ── Posts row (auto) ──
@@ -399,18 +423,42 @@ function autoBuildStructure(){
   const postHt = parseFloat(document.getElementById('postHt').value)||0;
   const concrete = document.getElementById('concreteBase').checked;
   const postLen = postHt>0 ? (postHt + (concrete?2:0)) : 10;  // default 10ft if no height yet
-  const postCount = calcPosts(length);
+  const postCount = length>0 ? calcPosts(length) : 0;
   let postRow = rows.beams.find(r=>r.auto==='post');
-  if(!postRow){
-    const hasManualPost = rows.beams.some(r=>r.pid==='post' && r.auto!=='post');
-    if(!hasManualPost){
-      postRow = {pid:'post', price:3.3, len:postLen, qty:postCount, total:0, ftotal:0, auto:'post'};
-      rows.beams.push(postRow);
+  if(postCount>0){
+    if(!postRow){
+      const hasManualPost = rows.beams.some(r=>r.pid==='post' && r.auto!=='post');
+      if(!hasManualPost){
+        postRow = {pid:'post', price:3.3, len:postLen, qty:postCount, total:0, ftotal:0, auto:'post'};
+        rows.beams.push(postRow);
+      }
+    } else {
+      // keep post count + height in sync (unless user manually changed them)
+      if(!postRow.qtyEdited) postRow.qty = postCount;
+      if(!postRow.lenEdited && postHt>0) postRow.len = postLen;
+    }
+  }
+  const nPost = postRow ? postRow.qty : 0;
+
+  // ── RULE 2: Concrete work labour — one charge per post ──
+  // When the concrete base box is ticked, add a labour line with qty = number of posts.
+  rows.labour = rows.labour.filter(r=>r.auto!=='concrete');
+  if(concrete && nPost>0){
+    rows.labour.push({pid:'cement', price:50, isSqft:false, qty:nPost, total:0,
+                      auto:'concrete', note:`混凝土工程 (${nPost}柱 × 1)，請自行調整單價`});
+  }
+
+  // ── RULE 3: Small corner — always 2 pcs, structure colour, any size ──
+  let cornRow = rows.hardware.find(r=>r.auto==='corner');
+  if(!cornRow){
+    const hasManualCorner = rows.hardware.some(r=>r.pid==='corner' && r.auto!=='corner');
+    if(!hasManualCorner){
+      rows.hardware.push({pid:'corner', price:1.0, len:0, qty:2, total:0, ftotal:0,
+                          auto:'corner', note:`包角 ${cz} (固定 2 個)`});
     }
   } else {
-    // keep post count + height in sync (unless user manually changed them)
-    if(!postRow.qtyEdited) postRow.qty = postCount;
-    if(!postRow.lenEdited && postHt>0) postRow.len = postLen;
+    if(!cornRow.qtyEdited) cornRow.qty = 2;   // always 2
+    cornRow.note = `包角 ${cz} (固定 2 個)`;
   }
 }
 function toggleSec(name){
@@ -523,13 +571,11 @@ function buildPanels(mode){
     screw2Notes.push(`固定地面 ${nPost}×4`);
   }
 
-  // ── Concrete base charge (Rule 4): if marked, add a per-post charge line (manually priced) ──
+  // Concrete work labour is handled centrally in autoBuildStructure (Rule 2),
+  // so it applies whether or not a panel-build button was pressed.
+  // Clear only panel-generated labour rows here (none currently), keeping the
+  // concrete row (auto==='concrete') intact.
   rows.labour = rows.labour.filter(r=>!r.autoPanel);
-  const concreteBase = document.getElementById('concreteBase').checked;
-  if(concreteBase && nPost>0){
-    rows.labour.push({pid:'cement', price:50, isSqft:false, qty:nPost, total:0, autoPanel:true,
-                      note:`混凝土底座/種柱 (${nPost}柱, 每柱+2ft, 請自行調整單價)`});
-  }
 
   // ── Emit pooled screws, rounded UP to next 50 ──
   if(screw58>0){
@@ -589,11 +635,11 @@ function renderRows(){
       <span class="line-amt ${r.ftotal>0?'':'zero'}" id="bft-${i}">${r.ftotal>0?r.ftotal+' ft':'—'}</span>
       <span class="line-amt ${r.total>0?'':'zero'}" id="btot-${i}">${fmtShort(r.total||0)}</span>
       <button class="del-btn" onclick="delRow('beams',${i})">✕</button>
-    </div>${r.auto?`<div style="font-size:10px;color:var(--amber);padding:0 0 4px 2px;margin-top:-2px">⚡ 自動${r.auto==='4in1'?' 4in1 (跟隨長度)':r.auto==='post'?' 柱 (每12ft一支+兩端)':r.auto==='tbar'?(' '+(r.note||'T型梁')):''}</div>`:''}`).join('');
+    </div>${r.auto?`<div style="font-size:10px;color:var(--amber);padding:0 0 4px 2px;margin-top:-2px">⚡ 自動${r.auto==='4in1'?' 4in1 (跟隨長度)':r.auto==='post'?' 柱 (每12ft一支+兩端)':(r.note?' '+r.note:'')}</div>`:''}`).join('');
 
   // HARDWARE: product | price | qty | total | del
   document.getElementById('rows-hardware').innerHTML = rows.hardware.map((r,i)=>`
-    <div class="item-row unit-row"${r.autoPanel?' style="background:#eef5fb"':''}>
+    <div class="item-row unit-row"${(r.autoPanel||r.auto)?' style="background:#eef5fb"':''}>
       ${makeSelect(HARDWARE, r.pid, `onProdChange('hardware',${i},this)`)}
       <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$" oninput="onValChange('hardware',${i},'price',this.value)">
       <input class="ni" type="number" inputmode="numeric" min="0" step="1" value="${r.qty||''}" placeholder="qty" oninput="onValChange('hardware',${i},'qty',this.value)">
@@ -607,7 +653,7 @@ function renderRows(){
     const isSqft = r.isSqft;
     const qtyVal = isSqft && sqft>0 ? sqft : (r.qty||'');
     const qtyPlaceholder = isSqft ? (sqft>0?sqft+' sqft':'sqft 自動') : 'qty';
-    return `<div class="item-row lab-row"${r.autoPanel?' style="background:#eef5fb"':''}>
+    return `<div class="item-row lab-row"${(r.autoPanel||r.auto)?' style="background:#eef5fb"':''}>
       ${makeSelect(LABOUR_OPTS, r.pid, `onLabChange(${i},this)`)}
       <input class="ni price-input" type="number" inputmode="decimal" min="0" step="0.01" value="${r.price||''}" placeholder="$" oninput="onValChange('labour',${i},'price',this.value)">
       <input class="ni" type="number" inputmode="decimal" min="0" step="0.5" value="${qtyVal}" placeholder="${qtyPlaceholder}" ${isSqft&&sqft>0?'readonly style="background:var(--bg3);color:var(--text3)"':''} oninput="onValChange('labour',${i},'qty',this.value)">
