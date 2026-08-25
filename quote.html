@@ -461,6 +461,34 @@ function autoBuildStructure(){
     if(!cornRow.qtyEdited) cornRow.qty = 2;   // always 2
     cornRow.note = `包角 ${cz} (固定 2 個)`;
   }
+
+  // ── RULE 4: Drainage set — always auto-included (1 drop per structure) ──
+  // Gutter length is entered per-job by the user (starts at project length as a hint).
+  // Per drop: 1 pipe + 1 outlet + 2 sponges + 3 elbows + 2 straps.
+  let gutterRow = rows.hardware.find(r=>r.auto==='gutter');
+  if(!gutterRow){
+    const hasManualGutter = rows.hardware.some(r=>r.pid==='gutter' && r.auto!=='gutter');
+    if(!hasManualGutter){
+      rows.hardware.push({pid:'gutter', price:6.0, len:(length>0?length:0), qty:(length>0?length:1),
+                          total:0, ftotal:0, auto:'gutter', note:`水槽 (長度請按實際調整)`});
+    }
+  } else {
+    if(!gutterRow.qtyEdited && length>0) gutterRow.qty = length;  // hint follows length until user edits
+  }
+  // Drainage accessories — one drop, fixed set. Rebuild each time (clear old auto rows first).
+  rows.hardware = rows.hardware.filter(r=>r.auto!=='drain');
+  const DROPS = 1;
+  const drainSet = [
+    {pid:'pipe',   price:16.0, qty:1*DROPS, note:'水管 (每組1支)'},
+    {pid:'outlet', price:3.5,  qty:1*DROPS, note:'落水口 (每組1個)'},
+    {pid:'sponge', price:1.5,  qty:2*DROPS, note:'海棉 (每組2個)'},
+    {pid:'elbow',  price:2.5,  qty:3*DROPS, note:'彎頭 (每組3個)'},
+    {pid:'straps', price:1.0,  qty:2*DROPS, note:'水管夾 (每支水管2個)'},
+  ];
+  drainSet.forEach(d=>{
+    rows.hardware.push({pid:d.pid, price:d.price, len:0, qty:d.qty, total:0, ftotal:0,
+                        auto:'drain', note:d.note});
+  });
 }
 function toggleSec(name){
   const b=document.getElementById('body-'+name);
@@ -556,10 +584,12 @@ function buildPanels(mode){
     screw58Notes.push(`V板 ${nV}×8`);
   }
 
-  // ── T-bars: total panels + 1, length = panel length ──
-  const nTbar = nPanels + 1;
-  rows.beams.push({pid:'tbar', price:3.1, len:panelLen, qty:nTbar, total:0, ftotal:0,
-                   auto:'tbar', note:`T型梁 ${cz} (面板${nPanels}+1)`});
+  // ── T-bars: GLASS panels + 1 only (V-panels excluded). None if all-V. ──
+  if(nGlass>0){
+    const nTbar = nGlass + 1;
+    rows.beams.push({pid:'tbar', price:3.1, len:panelLen, qty:nTbar, total:0, ftotal:0,
+                     auto:'tbar', note:`T型梁 ${cz} (玻璃${nGlass}+1，V板不需)`});
+  }
 
   // ── Post hardware: from auto post count (12 screws + 2 shoe + 4×2" each) ──
   const postRow = rows.beams.find(r=>r.auto==='post');
