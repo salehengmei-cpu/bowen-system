@@ -156,7 +156,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 
 <!-- Header -->
 <div class="hdr-card">
-  <h2>💰 報價計算器 Quote Calculator</h2>
+  <h2>💰 報價計算器 Quote Calculator
+    <button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
+  </h2>
   <div class="hdr-grid">
     <div class="field"><label>客戶 / Jobsite</label><input id="jobsite" type="text" placeholder="客戶名稱 / 地址 / 電話"></div>
     <div class="field"><label>日期 Date</label><input id="date" type="date"></div>
@@ -355,6 +357,70 @@ const LABOUR_OPTS = [
 
 function sGet(k,d){try{return JSON.parse(localStorage.getItem(k))||d;}catch(e){return d;}}
 function sSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+// ===== PRICE OVERRIDES: load saved custom prices over the defaults =====
+const PRICE_KEY='bpc_quote_prices';
+function applyPriceOverrides(){
+  const saved=sGet(PRICE_KEY,{});
+  [PANELS,BEAMS,HARDWARE,LABOUR_OPTS].forEach(arr=>{
+    arr.forEach(item=>{
+      if(saved[item.id]!==undefined && saved[item.id]!==null && saved[item.id]!==''){
+        item.price=parseFloat(saved[item.id]);
+      }
+    });
+  });
+}
+[PANELS,BEAMS,HARDWARE,LABOUR_OPTS].forEach(a=>a.forEach(it=>{it._def=it.price;}));
+applyPriceOverrides();
+
+function openPriceSettings(){
+  const saved=sGet(PRICE_KEY,{});
+  const groups=[['面板 Panels',PANELS],['梁 Beams',BEAMS],['五金 Hardware',HARDWARE],['人工 Labour',LABOUR_OPTS]];
+  let html='<div style="max-width:640px;margin:0 auto;">';
+  html+='<h2 style="color:#7B5E3A;">💵 價格設定 Price Settings</h2>';
+  html+='<p style="color:#666;font-size:13px;">改價後按「儲存」。空白=用預設價。Change any price and Save. Blank = default.</p>';
+  groups.forEach(([label,arr])=>{
+    html+=`<h3 style="color:#7B5E3A;border-bottom:2px solid #7B5E3A;padding-bottom:4px;margin-top:20px;">${label}</h3>`;
+    html+='<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    arr.forEach(item=>{
+      const cur=(saved[item.id]!==undefined&&saved[item.id]!=='')?saved[item.id]:'';
+      html+=`<tr style="border-bottom:1px solid #eee;">
+        <td style="padding:6px;">${item.zh||item.en}<br><span style="color:#999;font-size:11px;">${item.en}</span></td>
+        <td style="padding:6px;color:#999;text-align:right;white-space:nowrap;">預設 $${item._def!==undefined?item._def:item.price}</td>
+        <td style="padding:6px;width:90px;"><input type="number" step="0.01" id="pr_${item.id}" value="${cur}" placeholder="${item._def!==undefined?item._def:item.price}" style="width:80px;padding:4px;border:1px solid #ccc;border-radius:4px;text-align:right;"></td>
+      </tr>`;
+    });
+    html+='</table>';
+  });
+  html+='<div style="margin:20px 0;display:flex;gap:10px;">';
+  html+='<button onclick="savePrices()" style="background:#7B5E3A;color:#fff;border:none;padding:10px 20px;border-radius:6px;font-size:15px;cursor:pointer;">💾 儲存 Save</button>';
+  html+='<button onclick="resetPrices()" style="background:#eee;color:#333;border:none;padding:10px 20px;border-radius:6px;font-size:15px;cursor:pointer;">↺ 全部還原 Reset All</button>';
+  html+='<button onclick="closePriceSettings()" style="background:#eee;color:#333;border:none;padding:10px 20px;border-radius:6px;font-size:15px;cursor:pointer;">✕ 關閉 Close</button>';
+  html+='</div></div>';
+  let ov=document.getElementById('priceOverlay');
+  if(!ov){ov=document.createElement('div');ov.id='priceOverlay';
+    ov.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;overflow:auto;padding:20px;';
+    document.body.appendChild(ov);}
+  ov.innerHTML=html; ov.style.display='block';
+}
+function savePrices(){
+  const saved={};
+  [PANELS,BEAMS,HARDWARE,LABOUR_OPTS].forEach(arr=>arr.forEach(item=>{
+    const el=document.getElementById('pr_'+item.id);
+    if(el && el.value!=='' && !isNaN(parseFloat(el.value))) saved[item.id]=parseFloat(el.value);
+  }));
+  sSet(PRICE_KEY,saved);
+  applyPriceOverrides();
+  if(typeof calcAll==='function') calcAll();
+  alert('已儲存 Saved! 報價會用新價格。');
+  closePriceSettings();
+}
+function resetPrices(){
+  if(!confirm('確定還原所有價格到預設？Reset all prices to default?'))return;
+  sSet(PRICE_KEY,{});
+  location.reload();
+}
+function closePriceSettings(){const ov=document.getElementById('priceOverlay');if(ov)ov.style.display='none';}
 
 function getSqft(){
   const l=parseFloat(document.getElementById('len').value)||0;
