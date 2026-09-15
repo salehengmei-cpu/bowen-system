@@ -91,9 +91,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
   .hist-row{grid-template-columns:1fr 1fr;font-size:11px}
   .toolbar-left{flex-direction:column}
 }
-</style><link rel="stylesheet" href="bowen-theme.css">
+</style><link rel="stylesheet" href="bowen-theme.css"><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 </head>
-<body>
+<body><div id="auth-gate" style="position:fixed;inset:0;background:var(--bg,#F7F5F2);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;"><div style="background:var(--bg2,#fff);border:1px solid var(--border,#E3DDD3);border-radius:var(--radius,10px);padding:32px;width:100%;max-width:360px;box-shadow:var(--shadow-md,0 4px 10px rgba(0,0,0,.1));"><h2 style="font-size:18px;font-weight:700;margin-bottom:4px;color:var(--text,#2B2520);">🔒 Bowen 登入</h2><p style="font-size:12px;color:var(--text3,#9C8F84);margin-bottom:18px;">登入以查看及同步庫存資料 Sign in to view &amp; sync inventory</p><div id="auth-error" style="display:none;font-size:12px;color:#A33B2E;background:#F5E7E4;padding:8px 10px;border-radius:6px;margin-bottom:12px;"></div><div style="margin-bottom:10px;"><label style="font-size:12px;color:var(--text2,#6B6158);display:block;margin-bottom:4px;">電郵 Email</label><input id="auth-email" type="email" autocomplete="username" style="width:100%;padding:9px 12px;border:1px solid var(--border,#E3DDD3);border-radius:6px;font-size:14px;box-sizing:border-box;"></div><div style="margin-bottom:16px;"><label style="font-size:12px;color:var(--text2,#6B6158);display:block;margin-bottom:4px;">密碼 Password</label><input id="auth-password" type="password" autocomplete="current-password" style="width:100%;padding:9px 12px;border:1px solid var(--border,#E3DDD3);border-radius:6px;font-size:14px;box-sizing:border-box;" onkeydown="if(event.key==='Enter')authSignIn()"></div><button id="auth-signin-btn" onclick="authSignIn()" style="width:100%;padding:10px;border:none;border-radius:6px;background:var(--brand,#233541);color:#fff;font-weight:600;cursor:pointer;font-size:14px;margin-bottom:8px;">登入 Sign In</button><button id="auth-signup-btn" onclick="authSignUp()" style="width:100%;padding:10px;border:1px solid var(--border,#E3DDD3);border-radius:6px;background:none;cursor:pointer;font-size:13px;color:var(--text2,#6B6158);">第一次使用？建立帳號 First time? Create account</button><p style="font-size:11px;color:var(--text3,#9C8F84);margin-top:14px;text-align:center;">同一組帳號密碼可用於庫存及進出頁面 Same login works on Inventory &amp; Movement pages</p></div></div>
 <nav class="topnav">
   <div class="nav-logo">📦 Bowen 業務系統</div>
   <div class="nav-links">
@@ -404,7 +404,7 @@ function renderHistory(){
     </div>`;
   }).join('');
 }
-function clearHistory(){if(!confirm('確定清除所有異動記錄？'))return;history=[];saveAll();renderHistory();}
+function clearHistory(){if(!confirm('確定清除所有異動記錄？'))return;fbDb.collection('history').get().then(function(snap){const docs=snap.docs,batchSize=400,batches=[];for(let i=0;i<docs.length;i+=batchSize){const batch=fbDb.batch();docs.slice(i,i+batchSize).forEach(function(d){batch.delete(d.ref);});batches.push(batch.commit());}return Promise.all(batches);}).catch(function(e){alert('清除失敗 Failed to clear: '+e.message);});}
 
 function switchTab(t){
   document.getElementById('view-inv').style.display=t==='inv'?'block':'none';
@@ -473,21 +473,7 @@ function selectSku(sku){
   if(p)showProductInfo(p);
 }
 
-function confirmTx(){
-  if(!selectedSku){alert('請先選擇產品SKU');return;}
-  const qty=parseInt(document.getElementById('modal-qty').value)||0;
-  if(qty<=0){alert('請輸入有效數量');return;}
-  const date=document.getElementById('modal-date').value;
-  const note=document.getElementById('modal-note').value.trim();
-  const p=getProducts().find(p=>p.sku===selectedSku);
-  const cur=getStock(selectedSku);
-  if(modalType==='out'&&qty>cur){if(!confirm(`警告：出庫(${qty})超過庫存(${cur})！確定繼續？`))return;}
-  const after=modalType==='in'?cur+qty:Math.max(0,cur-qty);
-  stock[selectedSku]=after;
-  const now=new Date();
-  history.push({date,time:now.toTimeString().slice(0,5),sku:selectedSku,name:p?p.name_zh:selectedSku,type:modalType,qty,after,note});
-  saveAll();renderSummary();renderTable();closeModal();
-}
+function confirmTx(){if(!selectedSku){alert('請先選擇產品SKU');return;}const qty=parseInt(document.getElementById('modal-qty').value)||0;if(qty<=0){alert('請輸入有效數量');return;}const date=document.getElementById('modal-date').value;const note=document.getElementById('modal-note').value.trim();const p=getProducts().find(p=>p.sku===selectedSku);const cur=getStock(selectedSku);if(modalType==='out'&&qty>cur){if(!confirm(`警告：出庫(${qty})超過庫存(${cur})！確定繼續？`))return;}const after=modalType==='in'?cur+qty:Math.max(0,cur-qty);const now=new Date();const entry={date,time:now.toTimeString().slice(0,5),sku:selectedSku,name:p?p.name_zh:selectedSku,type:modalType,qty,after,note};const newStock=Object.assign({},stock,{[selectedSku]:after});closeModal();fbDb.collection('state').doc('stock').set({data:newStock,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true}).then(()=>fbDb.collection('history').add(Object.assign({},entry,{ts:firebase.firestore.FieldValue.serverTimestamp()}))).catch(e=>{alert('儲存失敗，請檢查網路連線 Save failed: '+e.message);});}
 
 function exportHistoryCSV(){
   const hist = lsGet('bpc_inv_hist',[]);
@@ -515,6 +501,7 @@ function exportCSV(){
 }
 
 renderSummary();renderTable();
+const firebaseConfig={apiKey:"AIzaSyCD1j_WOuKYeSAuSObdwWYSv4-vZA9iHp8",authDomain:"bowen-system.firebaseapp.com",projectId:"bowen-system",storageBucket:"bowen-system.firebasestorage.app",messagingSenderId:"259014048338",appId:"1:259014048338:web:f0652ef03a1ef43b8a7d8b",measurementId:"G-9TP92S2JNB"};firebase.initializeApp(firebaseConfig);const fbAuth=firebase.auth();const fbDb=firebase.firestore();function authErrMsg(e){const c=e&&e.code||'';if(c.includes('wrong-password')||c.includes('invalid-credential'))return'密碼錯誤 Wrong password';if(c.includes('user-not-found'))return'找不到此帳號 Account not found';if(c.includes('email-already-in-use'))return'此電郵已被使用，請直接登入 Email already in use, please sign in instead';if(c.includes('invalid-email'))return'電郵格式錯誤 Invalid email';if(c.includes('weak-password'))return'密碼至少6個字元 Password needs 6+ characters';return(e&&e.message)||'發生錯誤 Something went wrong';}function authSignIn(){const email=document.getElementById('auth-email').value.trim();const pw=document.getElementById('auth-password').value;const errBox=document.getElementById('auth-error');errBox.style.display='none';if(!email||!pw){errBox.textContent='請輸入電郵及密碼 Enter email and password';errBox.style.display='block';return;}fbAuth.signInWithEmailAndPassword(email,pw).catch(e=>{errBox.textContent='登入失敗 Sign in failed：'+authErrMsg(e);errBox.style.display='block';});}function authSignUp(){const email=document.getElementById('auth-email').value.trim();const pw=document.getElementById('auth-password').value;const errBox=document.getElementById('auth-error');errBox.style.display='none';if(!email||!pw){errBox.textContent='請輸入電郵及密碼 Enter email and password';errBox.style.display='block';return;}if(pw.length<6){errBox.textContent='密碼至少6個字元 Password needs 6+ characters';errBox.style.display='block';return;}fbAuth.createUserWithEmailAndPassword(email,pw).catch(e=>{errBox.textContent='建立帳號失敗 Sign up failed：'+authErrMsg(e);errBox.style.display='block';});}let unsubStock=null,unsubHist=null;fbAuth.onAuthStateChanged(async function(user){const gate=document.getElementById('auth-gate');if(user){gate.style.display='none';await migrateLocalToCloudIfNeeded();attachCloudListeners();}else{gate.style.display='flex';if(unsubStock){unsubStock();unsubStock=null;}if(unsubHist){unsubHist();unsubHist=null;}}});async function migrateLocalToCloudIfNeeded(){try{const stockDoc=await fbDb.collection('state').doc('stock').get();if(!stockDoc.exists){const localStock=lsGet('bpc_inv_stock',{});const localHist=lsGet('bpc_inv_hist',[]);await fbDb.collection('state').doc('stock').set({data:localStock,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});const batchSize=400;for(let i=0;i<localHist.length;i+=batchSize){const batch=fbDb.batch();localHist.slice(i,i+batchSize).forEach(h=>{const ref=fbDb.collection('history').doc();batch.set(ref,Object.assign({},h,{ts:firebase.firestore.FieldValue.serverTimestamp()}));});await batch.commit();}}}catch(e){console.error('migration failed',e);}}function attachCloudListeners(){if(!unsubStock){unsubStock=fbDb.collection('state').doc('stock').onSnapshot(function(doc){if(doc.exists){stock=doc.data().data||{};lsSet('bpc_inv_stock',stock);renderSummary();renderTable();}},function(e){console.error('stock listener error',e);});}if(!unsubHist){unsubHist=fbDb.collection('history').orderBy('ts','asc').onSnapshot(function(snap){history=snap.docs.map(function(d){const v=d.data();return{date:v.date,time:v.time,sku:v.sku,name:v.name,type:v.type,qty:v.qty,after:v.after,note:v.note,_id:d.id};});lsSet('bpc_inv_hist',history);renderHistory();},function(e){console.error('history listener error',e);});}}
 </script>
 </body>
 </html>
