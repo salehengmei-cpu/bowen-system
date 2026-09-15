@@ -1,0 +1,135 @@
+/* ==========================================================================
+   Bowen Aluminum — brand theme (drop-in)
+   Repo: salehengmei-cpu/bowen-system  ·  from the Bowen Aluminum Design System
+   --------------------------------------------------------------------------
+   HOW TO APPLY (per file: index.html, inventory.html, movement.html, quote.html)
+   Add ONE line in <head>, AFTER the file's existing <style> block:
+
+       <link rel="stylesheet" href="bowen-theme.css">
+
+   That is all. Part 2 below re-points the variable names your CSS already
+   uses (--brand, --bg, --text, --radius, --shadow, …) at the brand palette,
+   so none of your existing rules need editing. Nothing is renamed or removed.
+   ========================================================================== */
+
+/* Webfonts. Simplest option — Google Fonts.
+   If you'd rather self-host, copy assets/fonts/*.woff2 out of the design
+   system into a fonts/ folder next to this file and swap this @import for the
+   @font-face block at the bottom of this file. */
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&display=swap');
+
+/* ========================== PART 1 — brand tokens ========================= */
+:root{
+  /* Brand — sampled from the real logo */
+  --navy-900:#16222B;--navy-800:#1C2B36;--navy-700:#233541;--navy-600:#2E4553;--navy-500:#3C5768;--navy-400:#5B7585;
+  --brass-700:#8E7351;--brass-600:#A98A63;--brass-500:#C1A580;--brass-400:#CFB894;--brass-300:#DFCDB2;--brass-100:#F3EBE0;
+
+  /* Warm neutrals */
+  --bone-000:#FFFFFF;--bone-050:#FAF8F5;--bone-100:#F2EEE8;--bone-200:#E4DED5;--bone-300:#D1C9BE;--bone-400:#A9A196;
+  --ink-600:#6E6862;--ink-700:#4A4640;--ink-800:#2B2823;--ink-900:#16140F;
+
+  /* Semantic state hues (muted, earthy) */
+  --green-600:#3F7A5E;--green-100:#E6EFE9;--amber-600:#B8842B;--amber-100:#F7EEDC;
+  --red-600:#A33B2E;--red-100:#F6E5E1;--blue-600:#2E6B86;--blue-100:#E3EDF2;
+
+  /* Semantic aliases */
+  --brand-primary:var(--navy-700);--brand-accent:var(--brass-500);
+  --surface-page:var(--bone-050);--surface-card:var(--bone-000);--surface-sunken:var(--bone-100);
+  --surface-inverse:var(--navy-700);--surface-accent-soft:var(--brass-100);
+  --text-heading:var(--navy-700);--text-body:var(--ink-700);--text-muted:var(--ink-600);
+  --text-on-inverse:var(--bone-050);--text-accent:var(--brass-600);--text-on-accent:var(--navy-900);
+  --border-hairline:var(--bone-200);--border-strong:var(--bone-300);--border-accent:var(--brass-500);
+  --link-rest:var(--brass-600);--link-hover:var(--navy-700);
+
+  /* Type. CJK fallbacks are preserved — Barlow only covers latin. */
+  --font-core:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;
+  --font-display:'Cormorant Garamond','PingFang TC','Microsoft JhengHei',Georgia,serif;
+
+  /* Surfaces & motion */
+  --radius-xs:2px;--radius-sm:3px;--radius-md:6px;--radius-pill:999px;
+  --shadow-1:0 1px 2px rgba(22,34,43,.06);
+  --shadow-2:0 2px 8px rgba(22,34,43,.08);
+  --shadow-3:0 10px 28px rgba(22,34,43,.12);
+  --focus-ring:0 0 0 3px rgba(193,165,128,.45);
+  --dur-base:200ms;--ease-standard:cubic-bezier(.4,0,.2,1);
+}
+
+/* ============ PART 2 — your existing variable names, re-pointed ==========
+   Left column = the names already used across index/inventory/movement/quote.
+   Nothing here renames anything; it only changes the values they resolve to.
+   ======================================================================== */
+:root{
+  /* brand ramp: brown #7B5E3A → brand navy, with brass as the light accent */
+  --brand:var(--navy-700);
+  --brand2:var(--navy-600);
+  --brand-mid:var(--brass-500);
+  --brand-light:var(--brass-100);
+  --brandL:var(--brass-100);
+  --brand-dark:var(--navy-900);
+
+  /* surfaces */
+  --bg:var(--bone-050);
+  --bg2:var(--bone-000);
+  --bg3:var(--bone-100);
+  --card:var(--bone-000);
+
+  /* ink */
+  --text:var(--ink-800);
+  --text2:var(--ink-600);
+  --text3:var(--bone-400);
+
+  /* lines */
+  --border:var(--bone-200);
+  --border2:var(--bone-300);
+  --line:var(--bone-200);
+
+  /* status — muted brand-compatible versions of the stock green/red/amber/blue */
+  --green:var(--green-600);--green-bg:var(--green-100);
+  --red:var(--red-600);--red-bg:var(--red-100);
+  --amber:var(--amber-600);--amber-bg:var(--amber-100);
+  --blue:var(--blue-600);
+
+  /* movement.html in/out directions */
+  --in:var(--green-600);
+  --out:var(--brass-700);
+
+  /* geometry & elevation — near-square, machined-aluminum feel */
+  --radius:6px;
+  --radius-sm:3px;
+  --shadow:var(--shadow-1);
+  --shadow-md:var(--shadow-3);
+}
+
+/* ===================== PART 3 — light global polish ======================
+   Only touches type rendering, links and focus. Comment out any block you
+   don't want. No layout, spacing or component rules are overridden.
+   ======================================================================== */
+body{font-family:var(--font-core);-webkit-font-smoothing:antialiased;text-wrap:pretty}
+
+a{color:var(--link-rest)}
+a:hover{color:var(--link-hover)}
+
+:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+
+/* Uppercase, letterspaced buttons are the brand's signature.
+   Enable if your .btn labels are latin; skip it for Chinese labels. */
+/* .btn{letter-spacing:.06em;text-transform:uppercase;font-weight:600} */
+
+/* Serif headings — opt in per page by adding class="brand-serif" to <body>. */
+.brand-serif h1,.brand-serif h2,.brand-serif h3{
+  font-family:var(--font-display);font-weight:600;letter-spacing:-.01em;color:var(--text-heading);
+}
+
+/* The signature 56×2px brass rule under a section title. */
+.brand-rule{height:2px;width:56px;background:var(--brass-500);border:0;margin:16px 0}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ============ Self-hosted fonts (alternative to the @import above) ========
+@font-face{font-family:'Barlow';font-weight:400;font-display:swap;src:url('fonts/barlow-400.woff2') format('woff2')}
+@font-face{font-family:'Barlow';font-weight:500;font-display:swap;src:url('fonts/barlow-500.woff2') format('woff2')}
+@font-face{font-family:'Barlow';font-weight:600;font-display:swap;src:url('fonts/barlow-600.woff2') format('woff2')}
+@font-face{font-family:'Barlow';font-weight:700;font-display:swap;src:url('fonts/barlow-700.woff2') format('woff2')}
+@font-face{font-family:'Cormorant Garamond';font-weight:400;font-display:swap;src:url('fonts/cormorant-garamond-400.woff2') format('woff2')}
+@font-face{font-family:'Cormorant Garamond';font-weight:600;font-display:swap;src:url('fonts/cormorant-garamond-600.woff2') format('woff2')}
+   ======================================================================== */
