@@ -157,7 +157,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 <!-- Header -->
 <div class="hdr-card">
   <h2>💰 報價計算器 Quote Calculator
-    <button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
+    <span style="float:right;font-size:11px;color:#999;font-weight:normal;margin:10px 10px 0 0;">v2026-09-29</span><button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
   </h2>
   <div class="hdr-grid">
     <div class="field"><label>客戶 / Jobsite</label><input id="jobsite" type="text" placeholder="客戶名稱 / 地址 / 電話"></div>
@@ -646,7 +646,8 @@ function buildPanels(mode){
 
   // Accumulators — screws are pooled then rounded UP to the next 50 (sold in 50s)
   const TAPE_ROLL_FT = 98;          // each double-side tape roll = 98ft
-  const SCREW_UNIT = 50;            // screws sold in 50pcs units
+  const SCREW_UNIT = 50;            // 5/8" screws sold in 50pcs units
+  const SCREW2_UNIT = 30;           // 2" screws sold in 30pcs packs
   let screw58 = 0;                  // 5/8" screws (raw count, pooled)
   let screw2 = 0;                   // 2" screws (raw count, pooled)
   const screw58Notes = [];
@@ -687,6 +688,12 @@ function buildPanels(mode){
     // 8 screws per V panel (pooled)
     screw58 += nV * 8;
     screw58Notes.push(`V板 ${nV}×8`);
+    // ── RULE 8: Silicon 膠 (V-panels) — white/black, 1 pc per 3 V-panels ──
+    // 3塊→1支, 4塊→2支, 6塊→2支 (round up ÷3). Separate from the length-based structure silicon.
+    const silVid = structColour()==='black' ? 'c_black' : 'c_white';
+    const silV   = Math.ceil(nV/3);
+    rows.hardware.push({pid:silVid, price:P(silVid), len:0, qty:silV, total:0, ftotal:0,
+                        autoPanel:true, note:`膠 ${cz} (V板${nV}塊 ÷3 → ${silV}支)`});
   }
 
   // ── T-bars: GLASS panels + 1 only (V-panels excluded). None if all-V. ──
@@ -720,9 +727,10 @@ function buildPanels(mode){
                         note:`5/8"螺絲 ${cz} (需${screw58}pcs: ${screw58Notes.join(' + ')} → 進位${rounded}, 每50pcs一單位)`});
   }
   if(screw2>0){
-    const rounded = roundUp(screw2, SCREW_UNIT);
+    const packs   = Math.ceil(screw2 / SCREW2_UNIT);      // sold in 30-pc packs
+    const rounded = packs * SCREW2_UNIT;                  // pieces charged (per-piece price)
     rows.hardware.push({pid:'sc2', price:P('sc2'), len:0, qty:rounded, total:0, ftotal:0, autoPanel:true,
-                        note:`2"螺絲 (需${screw2}pcs: ${screw2Notes.join(' + ')} → 進位${rounded}, 每50pcs一單位)`});
+                        note:`2"螺絲 (需${screw2}pcs: ${screw2Notes.join(' + ')} → ${packs}包×30 = ${rounded}pcs)`});
   }
 
   renderRows();
