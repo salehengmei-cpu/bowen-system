@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head><style>
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bowen — 報價計算器</title>
@@ -139,7 +139,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
   .overlay{display:flex!important;position:static;background:none;padding:0}
   .overlay-box{max-height:none;box-shadow:none;padding:0}
 }
-</style><link rel="stylesheet" href="bowen-theme.css">
+</style>
 </head>
 <body>
 <nav class="topnav">
@@ -529,18 +529,9 @@ function autoBuildStructure(){
   }
 
   // ── RULE 4: Drainage set — always auto-included (1 drop per structure) ──
-  // Gutter length is entered per-job by the user (starts at project length as a hint).
+  // NOTE: Gutter 水槽 is NOT auto-added — add it manually when the job needs it.
   // Per drop: 1 pipe + 1 outlet + 2 sponges + 3 elbows + 2 straps.
-  let gutterRow = rows.hardware.find(r=>r.auto==='gutter');
-  if(!gutterRow){
-    const hasManualGutter = rows.hardware.some(r=>r.pid==='gutter' && r.auto!=='gutter');
-    if(!hasManualGutter){
-      rows.hardware.push({pid:'gutter', price:6.0, len:(length>0?length:0), qty:(length>0?length:1),
-                          total:0, ftotal:0, auto:'gutter', note:`水槽 (長度請按實際調整)`});
-    }
-  } else {
-    if(!gutterRow.qtyEdited && length>0) gutterRow.qty = length;  // hint follows length until user edits
-  }
+  rows.hardware = rows.hardware.filter(r=>r.auto!=='gutter');  // drop any old auto gutter row
   // Drainage accessories — one drop, fixed set. Rebuild each time (clear old auto rows first).
   rows.hardware = rows.hardware.filter(r=>r.auto!=='drain');
   const DROPS = 1;
