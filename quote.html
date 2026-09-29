@@ -373,6 +373,16 @@ function applyPriceOverrides(){
 [PANELS,BEAMS,HARDWARE,LABOUR_OPTS].forEach(a=>a.forEach(it=>{it._def=it.price;}));
 applyPriceOverrides();
 
+// Current price for a product id — ALWAYS use this in auto-build rules so that
+// custom prices saved in 改價 Price Settings flow into auto-generated rows.
+function P(id){
+  for(const arr of [PANELS,BEAMS,HARDWARE,LABOUR_OPTS]){
+    const it=arr.find(x=>x.id===id);
+    if(it) return it.price;
+  }
+  return 0;
+}
+
 function openPriceSettings(){
   const saved=sGet(PRICE_KEY,{});
   const groups=[['面板 Panels',PANELS],['梁 Beams',BEAMS],['五金 Hardware',HARDWARE],['人工 Labour',LABOUR_OPTS]];
@@ -458,7 +468,7 @@ function autoBuildStructure(){
       // Only auto-create if user hasn't already manually added a 4in1 variant
       const hasManual4in1 = rows.beams.some(r=>['4in1','4in1_blk','4in1_wht'].includes(r.pid));
       if(!hasManual4in1){
-        beamRow = {pid:'4in1', price:12.0, len:length, qty:1, total:0, ftotal:0, auto:'4in1'};
+        beamRow = {pid:'4in1', price:P('4in1'), len:length, qty:1, total:0, ftotal:0, auto:'4in1'};
         rows.beams.unshift(beamRow);
       }
     } else {
@@ -474,7 +484,7 @@ function autoBuildStructure(){
     if(!sideRow){
       const hasManualSide = rows.beams.some(r=>r.pid==='splate' && r.auto!=='side');
       if(!hasManualSide){
-        sideRow = {pid:'splate', price:2.45, len:width, qty:2, total:0, ftotal:0,
+        sideRow = {pid:'splate', price:P('splate'), len:width, qty:2, total:0, ftotal:0,
                    auto:'side', note:`側板 ${cz} (2支 × 寬度 ${width}ft)`};
         rows.beams.push(sideRow);
       }
@@ -496,7 +506,7 @@ function autoBuildStructure(){
     if(!postRow){
       const hasManualPost = rows.beams.some(r=>r.pid==='post' && r.auto!=='post');
       if(!hasManualPost){
-        postRow = {pid:'post', price:3.3, len:postLen, qty:postCount, total:0, ftotal:0, auto:'post'};
+        postRow = {pid:'post', price:P('post'), len:postLen, qty:postCount, total:0, ftotal:0, auto:'post'};
         rows.beams.push(postRow);
       }
     } else {
@@ -511,7 +521,7 @@ function autoBuildStructure(){
   // When the concrete base box is ticked, add a labour line with qty = number of posts.
   rows.labour = rows.labour.filter(r=>r.auto!=='concrete');
   if(concrete && nPost>0){
-    rows.labour.push({pid:'cement', price:50, isSqft:false, qty:nPost, total:0,
+    rows.labour.push({pid:'cement', price:P('cement'), isSqft:false, qty:nPost, total:0,
                       auto:'concrete', note:`混凝土工程 (${nPost}柱 × 1)，請自行調整單價`});
   }
 
@@ -520,7 +530,7 @@ function autoBuildStructure(){
   if(!cornRow){
     const hasManualCorner = rows.hardware.some(r=>r.pid==='corner' && r.auto!=='corner');
     if(!hasManualCorner){
-      rows.hardware.push({pid:'corner', price:1.0, len:0, qty:2, total:0, ftotal:0,
+      rows.hardware.push({pid:'corner', price:P('corner'), len:0, qty:2, total:0, ftotal:0,
                           auto:'corner', note:`包角 ${cz} (固定 2 個)`});
     }
   } else {
@@ -536,16 +546,49 @@ function autoBuildStructure(){
   rows.hardware = rows.hardware.filter(r=>r.auto!=='drain');
   const DROPS = 1;
   const drainSet = [
-    {pid:'pipe',   price:16.0, qty:1*DROPS, note:'水管 (每組1支)'},
-    {pid:'outlet', price:3.5,  qty:1*DROPS, note:'落水口 (每組1個)'},
-    {pid:'sponge', price:1.5,  qty:2*DROPS, note:'海棉 (每組2個)'},
-    {pid:'elbow',  price:2.5,  qty:3*DROPS, note:'彎頭 (每組3個)'},
-    {pid:'straps', price:1.0,  qty:2*DROPS, note:'水管夾 (每支水管2個)'},
+    {pid:'pipe',   price:P('pipe'), qty:1*DROPS, note:'水管 (每組1支)'},
+    {pid:'outlet', price:P('outlet'),  qty:1*DROPS, note:'落水口 (每組1個)'},
+    {pid:'sponge', price:P('sponge'),  qty:2*DROPS, note:'海棉 (每組2個)'},
+    {pid:'elbow',  price:P('elbow'),  qty:3*DROPS, note:'彎頭 (每組3個)'},
+    {pid:'straps', price:P('straps'),  qty:2*DROPS, note:'水管夾 (每支水管2個)'},
   ];
   drainSet.forEach(d=>{
     rows.hardware.push({pid:d.pid, price:d.price, len:0, qty:d.qty, total:0, ftotal:0,
                         auto:'drain', note:d.note});
   });
+
+  // ── RULE 5: Silicon 膠 (structure) — by patio LENGTH ──
+  // ≤24ft → 1 pc, >24ft → 2 pcs. Colour follows the structure (black / white).
+  rows.hardware = rows.hardware.filter(r=>r.auto!=='sil');
+  if(length>0){
+    const silId  = structColour()==='black' ? 'c_black' : 'c_white';
+    const silQty = length>24 ? 2 : 1;
+    rows.hardware.push({pid:silId, price:P(silId), len:0, qty:silQty, total:0, ftotal:0,
+                        auto:'sil',
+                        note:`膠 ${colourZh()} (${length}ft ${length>24?'>24ft → 2支':'≤24ft → 1支'})`});
+  }
+
+  // ── RULE 7: Over 24ft → 2 I-beam splices + 1 gutter splice ──
+  // Splice size follows the beam actually used in the quote (4" / 6" / 8").
+  rows.hardware = rows.hardware.filter(r=>r.auto!=='splice');
+  if(length>24){
+    const SP_BY_BEAM = {'3in1':'sp4','4in1':'sp4','4in1_blk':'sp4','4in1_wht':'sp4','4ibeam':'sp4',
+                        '6in1':'sp6','6ibeam':'sp6','8ibeam':'sp8'};
+    let spId='sp4', spLabel='4吋';
+    // Prefer a beam the user added/selected themselves; fall back to the auto beam row.
+    const bRow = rows.beams.find(r=>SP_BY_BEAM[r.pid] && !r.auto)
+              || rows.beams.find(r=>SP_BY_BEAM[r.pid]);
+    if(bRow){
+      spId = SP_BY_BEAM[bRow.pid];
+      spLabel = spId==='sp8' ? '8吋' : (spId==='sp6' ? '6吋' : '4吋');
+    }
+    rows.hardware.push({pid:spId, price:P(spId), len:0, qty:2, total:0, ftotal:0,
+                        auto:'splice',
+                        note:`${spLabel}工字梁接駁件 ${colourZh()} (${length}ft >24ft → 2個)`});
+    rows.hardware.push({pid:'gsplice', price:P('gsplice'), len:0, qty:1, total:0, ftotal:0,
+                        auto:'splice',
+                        note:`水槽接駁件 ${colourZh()} (>24ft → 1個)`});
+  }
 }
 function toggleSec(name){
   const b=document.getElementById('body-'+name);
@@ -613,21 +656,26 @@ function buildPanels(mode){
   // ── GLASS panels ──
   if(nGlass>0){
     // default glass type = clear; user can change the product after
-    rows.panels.push({pid:'clr_gl', price:2.0, len:panelLen, qty:nGlass, total:0, ftotal:0,
+    rows.panels.push({pid:'clr_gl', price:P('clr_gl'), len:panelLen, qty:nGlass, total:0, ftotal:0,
                       autoPanel:true, note:'玻璃'+splitNote});
     // Double-side tape: 2 sides along the length of each glass panel.
     // Total tape length ÷ 98ft per roll, round up.
     const tapeFt = nGlass * panelLen * 2;
     const tapeRolls = Math.ceil(tapeFt / TAPE_ROLL_FT);
-    rows.hardware.push({pid:'tape', price:7.5, len:0, qty:tapeRolls, total:0, ftotal:0, autoPanel:true,
+    rows.hardware.push({pid:'tape', price:P('tape'), len:0, qty:tapeRolls, total:0, ftotal:0, autoPanel:true,
                         note:`雙面膠 ${cz} (${nGlass}塊×${panelLen}ft×2邊=${tapeFt}ft ÷98ft/卷=${tapeRolls}卷)`});
     // 6 screws per glass panel (pooled)
     screw58 += nGlass * 6;
     screw58Notes.push(`玻璃 ${nGlass}×6`);
     // over 12ft → 1 glass splice per split panel
     if(panelLen>12){
-      rows.hardware.push({pid:'glspl', price:2.8, len:0, qty:nGlass, total:0, ftotal:0, autoPanel:true, note:`玻璃接駁 (每塊分割×1)`});
+      rows.hardware.push({pid:'glspl', price:P('glspl'), len:0, qty:nGlass, total:0, ftotal:0, autoPanel:true, note:`玻璃接駁 (每塊分割×1)`});
     }
+    // ── RULE 6: Silicon 膠 (glass) — separate CLEAR silicon, 1 pc per 3 glass panels ──
+    // 3塊→1支, 4塊→2支, 6塊→2支, 7塊→3支 (round up ÷3)
+    const silGlass = Math.ceil(nGlass/3);
+    rows.hardware.push({pid:'c_clear', price:P('c_clear'), len:0, qty:silGlass, total:0, ftotal:0,
+                        autoPanel:true, note:`透明膠 (${nGlass}塊玻璃 ÷3 → ${silGlass}支)`});
   }
 
   // ── V panels ──
@@ -644,7 +692,7 @@ function buildPanels(mode){
   // ── T-bars: GLASS panels + 1 only (V-panels excluded). None if all-V. ──
   if(nGlass>0){
     const nTbar = nGlass + 1;
-    rows.beams.push({pid:'tbar', price:3.1, len:panelLen, qty:nTbar, total:0, ftotal:0,
+    rows.beams.push({pid:'tbar', price:P('tbar'), len:panelLen, qty:nTbar, total:0, ftotal:0,
                      auto:'tbar', note:`T型梁 ${cz} (玻璃${nGlass}+1，V板不需)`});
   }
 
@@ -654,7 +702,7 @@ function buildPanels(mode){
   if(nPost>0){
     screw58 += nPost * 12;
     screw58Notes.push(`柱 ${nPost}×12`);
-    rows.hardware.push({pid:'pshoe', price:2.0, len:0, qty:nPost*2, total:0, ftotal:0, autoPanel:true, note:`柱碼 ${cz} (${nPost}×2)`});
+    rows.hardware.push({pid:'pshoe', price:P('pshoe'), len:0, qty:nPost*2, total:0, ftotal:0, autoPanel:true, note:`柱碼 ${cz} (${nPost}×2)`});
     screw2 += nPost * 4;
     screw2Notes.push(`固定地面 ${nPost}×4`);
   }
@@ -668,12 +716,12 @@ function buildPanels(mode){
   // ── Emit pooled screws, rounded UP to next 50 ──
   if(screw58>0){
     const rounded = roundUp(screw58, SCREW_UNIT);
-    rows.hardware.push({pid:scRe, price:0.09, len:0, qty:rounded, total:0, ftotal:0, autoPanel:true,
+    rows.hardware.push({pid:scRe, price:P(scRe), len:0, qty:rounded, total:0, ftotal:0, autoPanel:true,
                         note:`5/8"螺絲 ${cz} (需${screw58}pcs: ${screw58Notes.join(' + ')} → 進位${rounded}, 每50pcs一單位)`});
   }
   if(screw2>0){
     const rounded = roundUp(screw2, SCREW_UNIT);
-    rows.hardware.push({pid:'sc2', price:0.12, len:0, qty:rounded, total:0, ftotal:0, autoPanel:true,
+    rows.hardware.push({pid:'sc2', price:P('sc2'), len:0, qty:rounded, total:0, ftotal:0, autoPanel:true,
                         note:`2"螺絲 (需${screw2}pcs: ${screw2Notes.join(' + ')} → 進位${rounded}, 每50pcs一單位)`});
   }
 
