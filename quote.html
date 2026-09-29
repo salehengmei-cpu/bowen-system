@@ -157,7 +157,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 <!-- Header -->
 <div class="hdr-card">
   <h2>💰 報價計算器 Quote Calculator
-    <span style="float:right;font-size:11px;color:#999;font-weight:normal;margin:10px 10px 0 0;">v2026-09-29</span><button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
+    <span style="float:right;font-size:11px;color:#999;font-weight:normal;margin:10px 10px 0 0;">v2026-09-29b</span><button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
   </h2>
   <div class="hdr-grid">
     <div class="field"><label>客戶 / Jobsite</label><input id="jobsite" type="text" placeholder="客戶名稱 / 地址 / 電話"></div>
@@ -969,8 +969,16 @@ function showPrint(){
     const p=BEAMS.find(x=>x.id===r.pid);
     addMatRow((p?p.en+' '+p.zh:r.pid),`${r.len}ft × ${r.qty} = ${r.ftotal} ft`,r.price,r.total);
   });
+  // Hardware — merge rows of the SAME product (and same unit price) into one printed line.
+  // On-screen rows stay split so each auto-rule's reason is still visible.
+  const hwMerged = [];
   rows.hardware.forEach(r=>{
     if(!r.pid||!r.total)return;
+    const hit = hwMerged.find(m=>m.pid===r.pid && m.price===r.price);
+    if(hit){ hit.qty += r.qty; hit.total += r.total; }
+    else { hwMerged.push({pid:r.pid, price:r.price, qty:r.qty, total:r.total}); }
+  });
+  hwMerged.forEach(r=>{
     const p=HARDWARE.find(x=>x.id===r.pid);
     addMatRow((p?p.en+' '+p.zh:r.pid),`× ${r.qty}`,r.price,r.total);
   });
