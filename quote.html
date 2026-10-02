@@ -135,10 +135,52 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
   .qp-info{grid-template-columns:1fr}
 }
 @media print{
+  @page{size:letter;margin:14mm 14mm 12mm}
   .topnav,.actions,.overlay-actions,.del-btn,.add-row-btn{display:none!important}
   .overlay{display:flex!important;position:static;background:none;padding:0}
-  .overlay-box{max-height:none;box-shadow:none;padding:0}
+  .overlay-box{max-height:none;box-shadow:none;padding:0;border-radius:0}
+  body{background:#fff}
+  .qp-tbl{page-break-inside:auto}
+  .qp-tbl tr{page-break-inside:avoid;page-break-after:auto}
+  .qp-tbl thead{display:table-header-group}
+  .qp-tot,.qp-foot{page-break-inside:avoid}
 }
+/* ===== Printed quote layout ===== */
+.qp-head{display:flex;justify-content:space-between;align-items:flex-start;
+         border-bottom:3px solid var(--brand);padding-bottom:10px;margin-bottom:14px}
+.qp-head .co{font-size:24px;font-weight:800;color:var(--brand);letter-spacing:.3px;line-height:1.1}
+.qp-head .tag{font-size:11px;color:var(--text3);margin-top:3px}
+.qp-head .doc{text-align:right}
+.qp-head .doc .t{font-size:17px;font-weight:700;color:var(--brand)}
+.qp-head .doc .n{font-size:11px;color:var(--text3);margin-top:3px}
+.qp-info{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-bottom:16px;
+         border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.qp-info > div{padding:8px 12px;border-right:1px solid var(--border);background:#faf8f5}
+.qp-info > div:last-child{border-right:none}
+.qp-label{font-size:9.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.qp-info strong{font-size:13px;color:#2B2520}
+.qp-sec{font-size:12px;font-weight:700;color:#fff;background:var(--brand);
+        padding:6px 10px;margin-top:4px;border-radius:4px 4px 0 0}
+.qp-tbl{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:12px}
+.qp-tbl th{background:#5A4530;color:#fff;padding:6px 10px;text-align:left;
+           font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+.qp-tbl td{padding:4.5px 10px;border-bottom:1px solid #EDE6DC;vertical-align:top}
+.qp-tbl tr:nth-child(even) td{background:#FBF9F6}
+.qp-tbl .grp td{background:#F2EBE2!important;font-weight:700;color:var(--brand);font-size:10.5px;
+                padding:4px 10px;border-bottom:1px solid #E0D5C6}
+.qp-tbl .r{text-align:right;white-space:nowrap}
+.qp-tbl .c{text-align:center;white-space:nowrap}
+.qp-tbl .sub td{background:#F7F2EC!important;font-weight:700;border-top:1px solid var(--brand)}
+.qp-tot{margin-left:auto;width:62%;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.qp-tot-row{display:flex;justify-content:space-between;padding:7px 14px;font-size:12.5px;
+            border-bottom:1px solid #EDE6DC;background:#fff}
+.qp-tot-row:last-child{border-bottom:none}
+.qp-tot-row.sub{background:#FBF9F6;font-weight:600}
+.qp-tot-row.grand{background:var(--brand);color:#fff;font-size:16px;font-weight:800;padding:11px 14px}
+.qp-foot{margin-top:18px;border-top:1px solid var(--border);padding-top:10px;
+         font-size:10.5px;color:var(--text3);line-height:1.6}
+.qp-sign{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:22px}
+.qp-sign div{border-top:1px solid #9C8F84;padding-top:5px;font-size:10.5px;color:var(--text3)}
 </style>
 </head>
 <body>
@@ -157,7 +199,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 <!-- Header -->
 <div class="hdr-card">
   <h2>💰 報價計算器 Quote Calculator
-    <span style="float:right;font-size:11px;color:#999;font-weight:normal;margin:10px 10px 0 0;">v2026-09-29b</span><button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
+    <span style="float:right;font-size:11px;color:#999;font-weight:normal;margin:10px 10px 0 0;">v2026-10-01</span><button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
   </h2>
   <div class="hdr-grid">
     <div class="field"><label>客戶 / Jobsite</label><input id="jobsite" type="text" placeholder="客戶名稱 / 地址 / 電話"></div>
@@ -953,66 +995,122 @@ function showPrint(){
   const jobsite=document.getElementById('jobsite').value||'—';
   const date=document.getElementById('date').value;
 
-  let matRows='', matTotal=0;
-  const addMatRow=(prod,spec,price,total)=>{
-    if(total<=0)return;
-    matTotal+=total;
-    matRows+=`<tr><td>${prod}</td><td>${spec}</td><td class="r">${fmt(price)}</td><td class="r">${fmt(total)}</td></tr>`;
+  // Name for print: show EN on line 1, 中文 on line 2 — but skip the 中文 line
+  // when the English label already contains it (e.g. en:'Pipe 水管', zh:'水管').
+  const pname=(p,fallback)=>{
+    if(!p) return fallback;
+    const en=p.en||'', zh=p.zh||'';
+    if(!zh || en.includes(zh)) return en||fallback;
+    return en+'<br><span style="color:#9C8F84">'+zh+'</span>';
   };
-  rows.panels.forEach(r=>{
-    if(!r.pid||!r.total)return;
+
+  let matTotal=0;
+  // Build one grouped section of the materials table
+  const section=(title,list)=>{
+    if(!list.length) return '';
+    let body='', sub=0;
+    list.forEach(r=>{ sub+=r.total;
+      body+=`<tr><td>${r.name}</td><td>${r.spec}</td><td class="c">${r.qty}</td>`+
+            `<td class="r">${fmt(r.price)}</td><td class="r">${fmt(r.total)}</td></tr>`;
+    });
+    matTotal+=sub;
+    return `<tr class="grp"><td colspan="5">${title}</td></tr>${body}`+
+           `<tr class="sub"><td colspan="4">　小計 Subtotal</td><td class="r">${fmt(sub)}</td></tr>`;
+  };
+
+  // ---- Panels ----
+  const panelList=[];
+  rows.panels.forEach(r=>{ if(!r.pid||!r.total)return;
     const p=PANELS.find(x=>x.id===r.pid);
-    addMatRow((p?p.en+' '+p.zh:r.pid),`${r.len}ft × 2ft × ${r.qty}條 = ${r.sqft} sqft`,r.price,r.total);
+    panelList.push({name:pname(p,r.pid),
+                    spec:`${r.len}ft × 2ft　= ${r.sqft} sqft`, qty:r.qty+' 條', price:r.price, total:r.total});
   });
-  rows.beams.forEach(r=>{
-    if(!r.pid||!r.total)return;
+  // ---- Beams / posts ----
+  const beamList=[];
+  rows.beams.forEach(r=>{ if(!r.pid||!r.total)return;
     const p=BEAMS.find(x=>x.id===r.pid);
-    addMatRow((p?p.en+' '+p.zh:r.pid),`${r.len}ft × ${r.qty} = ${r.ftotal} ft`,r.price,r.total);
+    beamList.push({name:pname(p,r.pid),
+                   spec:`${r.len}ft　= ${r.ftotal} ft`, qty:r.qty+' 支', price:r.price, total:r.total});
   });
-  // Hardware — merge rows of the SAME product (and same unit price) into one printed line.
-  // On-screen rows stay split so each auto-rule's reason is still visible.
-  const hwMerged = [];
-  rows.hardware.forEach(r=>{
-    if(!r.pid||!r.total)return;
-    const hit = hwMerged.find(m=>m.pid===r.pid && m.price===r.price);
-    if(hit){ hit.qty += r.qty; hit.total += r.total; }
-    else { hwMerged.push({pid:r.pid, price:r.price, qty:r.qty, total:r.total}); }
+  // ---- Hardware (same product + same price merged) ----
+  const hwMerged=[];
+  rows.hardware.forEach(r=>{ if(!r.pid||!r.total)return;
+    const hit=hwMerged.find(m=>m.pid===r.pid && m.price===r.price);
+    if(hit){ hit.qty+=r.qty; hit.total+=r.total; }
+    else hwMerged.push({pid:r.pid,price:r.price,qty:r.qty,total:r.total});
   });
-  hwMerged.forEach(r=>{
+  const hwList=hwMerged.map(r=>{
     const p=HARDWARE.find(x=>x.id===r.pid);
-    addMatRow((p?p.en+' '+p.zh:r.pid),`× ${r.qty}`,r.price,r.total);
+    return {name:pname(p,r.pid),
+            spec:'', qty:r.qty+' 個', price:r.price, total:r.total};
   });
 
+  const matRows = section('面板 PANELS',panelList)
+                + section('樑柱 BEAMS &amp; POSTS',beamList)
+                + section('五金配件 HARDWARE',hwList);
+
+  // ---- Labour ----
   let labRows='', labTotal=0;
-  rows.labour.forEach(r=>{
-    if(!r.pid||!r.total)return;
+  rows.labour.forEach(r=>{ if(!r.pid||!r.total)return;
     const p=LABOUR_OPTS.find(x=>x.id===r.pid);
     labTotal+=r.total;
-    labRows+=`<tr><td>${p?p.en+' '+p.zh:r.pid}</td><td class="r">${fmt(r.price)}</td><td class="r">${r.qty}</td><td class="r">${fmt(r.total)}</td></tr>`;
+    labRows+=`<tr><td>${pname(p,r.pid)}</td>`+
+             `<td class="c">${r.qty}</td><td class="r">${fmt(r.price)}</td><td class="r">${fmt(r.total)}</td></tr>`;
   });
 
   const tax=matTotal*0.12, matTax=matTotal+tax, grand=matTax+labTotal;
   const dateStr=date?new Date(date+'T12:00:00').toLocaleDateString('en-CA'):new Date().toLocaleDateString('en-CA');
+  const ref='#'+Date.now().toString().slice(-6);
 
   document.getElementById('print-content').innerHTML=`
-    <div class="qp-co">Bowen Aluminum</div>
-    <div class="qp-sub">Patio Cover Quote · 庭院遮蓋報價單</div>
+    <div class="qp-head">
+      <div>
+        <div class="co">BOWEN ALUMINUM</div>
+        <div class="tag">Patio Cover · Railing · Fencing　|　博文鋁業</div>
+      </div>
+      <div class="doc">
+        <div class="t">報價單 QUOTATION</div>
+        <div class="n">${ref}<br>${dateStr}</div>
+      </div>
+    </div>
+
     <div class="qp-info">
-      <div><div class="qp-label">Jobsite / 工地</div><strong>${jobsite}</strong></div>
-      <div><div class="qp-label">Date / 日期</div><strong>${dateStr}</strong></div>
-      <div><div class="qp-label">Size / 尺寸</div><strong>${len} × ${wid} ft${sqft>0?' = '+sqft+' sq ft':''}</strong></div>
-      <div><div class="qp-label">Quote Ref</div><strong>#${Date.now().toString().slice(-6)}</strong></div>
+      <div><div class="qp-label">Client / Jobsite 客戶</div><strong>${jobsite}</strong></div>
+      <div><div class="qp-label">Size 尺寸</div><strong>${len} × ${wid} ft</strong></div>
+      <div><div class="qp-label">Area 面積</div><strong>${sqft>0?sqft+' sq ft':'—'}</strong></div>
     </div>
-    ${matRows?`<table class="qp-tbl"><thead><tr><th>材料 Material</th><th>規格 Spec</th><th>單價</th><th>小計</th></tr></thead><tbody>${matRows}</tbody></table>`:''}
-    ${labRows?`<table class="qp-tbl"><thead><tr><th>人工 Labour</th><th>單價 Rate</th><th>數量</th><th>小計</th></tr></thead><tbody>${labRows}</tbody></table>`:''}
+
+    ${matRows?`<table class="qp-tbl">
+      <thead><tr>
+        <th style="width:34%">項目 Item</th><th style="width:26%">規格 Spec</th>
+        <th style="width:12%" class="c">數量 Qty</th><th style="width:13%" class="r">單價 Unit</th>
+        <th style="width:15%" class="r">金額 Amount</th>
+      </tr></thead><tbody>${matRows}</tbody></table>`:''}
+
+    ${labRows?`<table class="qp-tbl">
+      <thead><tr>
+        <th style="width:48%">人工 Labour</th><th style="width:14%" class="c">數量 Qty</th>
+        <th style="width:18%" class="r">單價 Rate</th><th style="width:20%" class="r">金額 Amount</th>
+      </tr></thead><tbody>${labRows}</tbody></table>`:''}
+
     <div class="qp-tot">
-      <div class="qp-tot-row"><span>材料小計 Materials</span><span>${fmt(matTotal)}</span></div>
-      <div class="qp-tot-row"><span>GST/PST (12%)</span><span>${fmt(tax)}</span></div>
-      <div class="qp-tot-row"><span>材料含稅 Materials + Tax</span><span>${fmt(matTax)}</span></div>
-      <div class="qp-tot-row"><span>人工 Labour</span><span>${fmt(labTotal)}</span></div>
-      <div class="qp-tot-row grand"><span>💰 總計 GRAND TOTAL</span><span>${fmt(grand)}</span></div>
+      <div class="qp-tot-row"><span>材料小計　Materials</span><span>${fmt(matTotal)}</span></div>
+      <div class="qp-tot-row"><span>稅項　GST/PST (12%)</span><span>${fmt(tax)}</span></div>
+      <div class="qp-tot-row sub"><span>材料含稅　Materials + Tax</span><span>${fmt(matTax)}</span></div>
+      <div class="qp-tot-row"><span>人工　Labour</span><span>${fmt(labTotal)}</span></div>
+      <div class="qp-tot-row grand"><span>總計　GRAND TOTAL</span><span>${fmt(grand)}</span></div>
     </div>
-    <p style="margin-top:12px;font-size:11px;color:#9C8F84;text-align:center">本報價單有效期30天 · Valid for 30 days · Bowen Aluminum</p>`;
+
+    <div class="qp-sign">
+      <div>客戶簽名 Client Signature　/　Date</div>
+      <div>博文鋁業 Bowen Aluminum　/　Date</div>
+    </div>
+
+    <div class="qp-foot">
+      • 本報價單有效期 30 天。This quotation is valid for 30 days from the date above.<br>
+      • 價格已包含材料及安裝人工，稅項另計如上。Prices include materials and labour; taxes as shown.<br>
+      • 實際工程如有變更，價格將另行報價。Any change in scope will be re-quoted.
+    </div>`;
   document.getElementById('overlay').classList.add('show');
 }
 function closeOverlay(){document.getElementById('overlay').classList.remove('show');}
