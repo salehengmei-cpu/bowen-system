@@ -136,14 +136,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 }
 @media print{
   @page{size:letter;margin:14mm 14mm 12mm}
-  .topnav,.actions,.overlay-actions,.del-btn,.add-row-btn{display:none!important}
-  .overlay{display:flex!important;position:static;background:none;padding:0}
-  .overlay-box{max-height:none;box-shadow:none;padding:0;border-radius:0}
-  body{background:#fff}
+  /* PRINT THE QUOTE ONLY — hide the whole calculator UI */
+  .topnav,.page,.actions,.overlay-actions,.del-btn,.add-row-btn,
+  .qp-close,#priceOverlay,#stock-result{display:none!important}
+  html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important}
+  /* the quote overlay becomes the page itself */
+  .overlay{display:block!important;position:static!important;background:none!important;
+           padding:0!important;margin:0!important;inset:auto!important;
+           width:auto!important;height:auto!important;overflow:visible!important}
+  .overlay-box{max-width:none!important;width:auto!important;max-height:none!important;
+               box-shadow:none!important;padding:0!important;margin:0!important;
+               border-radius:0!important;overflow:visible!important;background:#fff!important}
+  #print-content{display:block!important}
+  /* keep tables tidy across pages */
   .qp-tbl{page-break-inside:auto}
   .qp-tbl tr{page-break-inside:avoid;page-break-after:auto}
   .qp-tbl thead{display:table-header-group}
-  .qp-tot,.qp-foot{page-break-inside:avoid}
+  .qp-tot,.qp-foot,.qp-sign,.qp-head,.qp-info{page-break-inside:avoid}
+  /* tighter so a normal quote lands on one page */
+  .qp-tbl{font-size:10.5px;margin-bottom:8px}
+  .qp-tbl td{padding:1.8px 8px;line-height:1.2}
+  /* item name on ONE line in print: "Clear Glass 清玻璃" */
+  .qp-tbl td br{display:none}
+  .qp-tbl td span{font-size:9.5px;margin-left:5px}
+  .qp-tbl .grp td{padding:3px 8px}
+  .qp-tbl .sub td{padding:3px 8px}
+  .qp-tbl th{padding:5px 8px}
+  .qp-head{margin-bottom:8px;padding-bottom:6px}
+  .qp-info{margin-bottom:10px}
+  .qp-info > div{padding:6px 10px}
+  .qp-tot-row{padding:3.5px 12px;font-size:11px}
+  .qp-tot-row.grand{padding:6px 12px;font-size:13.5px}
+  .qp-sign{margin-top:10px}
+  .qp-foot{margin-top:9px;padding-top:6px;font-size:9px;line-height:1.45}
+  /* make sure brand colours actually print */
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 /* ===== Printed quote layout ===== */
 .qp-head{display:flex;justify-content:space-between;align-items:flex-start;
@@ -199,7 +226,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 <!-- Header -->
 <div class="hdr-card">
   <h2>💰 報價計算器 Quote Calculator
-    <span style="float:right;font-size:11px;color:#999;font-weight:normal;margin:10px 10px 0 0;">v2026-10-01</span><button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
+    <span style="float:right;font-size:11px;color:#999;font-weight:normal;margin:10px 10px 0 0;">v2026-10-15</span><button onclick="openPriceSettings()" style="float:right;background:#7B5E3A;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer;">💵 改價 Prices</button>
   </h2>
   <div class="hdr-grid">
     <div class="field"><label>客戶 / Jobsite</label><input id="jobsite" type="text" placeholder="客戶名稱 / 地址 / 電話"></div>
@@ -307,7 +334,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Micr
 <!-- Print overlay -->
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeOverlay()">
   <div class="overlay-box">
-    <button style="float:right;background:none;border:none;cursor:pointer;font-size:20px;color:#9C8F84" onclick="closeOverlay()">✕</button>
+    <button class="qp-close" style="float:right;background:none;border:none;cursor:pointer;font-size:20px;color:#9C8F84" onclick="closeOverlay()">✕</button>
     <div id="print-content"></div>
     <div class="overlay-actions">
       <button class="btn btn-outline" onclick="closeOverlay()">關閉</button>
