@@ -554,7 +554,7 @@ canvas.map-canvas {
   <div class="topnav-logo">
     <div class="logo-mark">B</div>
     <div>
-      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22e</span></div>
+      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22g</span></div>
       <div class="logo-sub">Bowen Patio Cover</div>
     </div>
   </div>
@@ -1052,7 +1052,9 @@ function buildMap(items) {
     // screws and sealant travel separately, so they are reported, not packed.
     // The SKU is the authority. A product record that predates the flag
     // leaves it undefined, and undefined must not read as "not aluminium".
-    const isAlu = ALU_RE.test(it.sku || '');
+    // Trimmed, because a SKU typed with a stray leading space would fail the
+    // pattern and get thrown out as non-aluminium.
+    const isAlu = ALU_RE.test((it.sku || '').trim());
     if (it.sku && !isAlu) {
       nonAlu += qty; nonAluBySku[it.sku] = (nonAluBySku[it.sku]||0) + qty;
       return;
@@ -1073,21 +1075,65 @@ function buildMap(items) {
 
   const packer = makePacker();
   pieces.forEach(p => { const f = packer.flat(p.l, p.w, p.h); p.fl=f.fl; p.fw=f.fw; p.fh=f.fh; });
-  // Tallest first so each horizontal layer stays level. Within the same
-  // height, keep one SKU together: a profile is strapped into bundles and
-  // loaded as a block, not scattered piece by piece down the container — so
-  // packing it that way is both the truthful answer and the readable picture.
-  // Longest first inside a SKU, so long bars anchor a row.
-  pieces.sort((a,b) =>
-    (b.fh - a.fh) ||
-    (a.sku < b.sku ? -1 : a.sku > b.sku ? 1 : 0) ||
-    (b.fl - a.fl) || (b.fw - a.fw));
+  // ── Order the pieces so each row of the container gets filled ──────────
+  // Feeding them SKU by SKU, longest first, wasted the back of every row: a
+  // 24 ft bar is 731.5 cm in a 1203 cm container, so it claimed a whole row
+  // and left 471 cm that only a 14 ft bar could ever reach. Two more 22 ft
+  // bars then opened two more rows with the same hole behind them.
+  //
+  // What a loader actually does is pair lengths to make up the run — 24 ft +
+  // 14 ft = 1158 cm, 22 ft + 16 ft, 20 ft + 18 ft — so that is what we work
+  // out here, per profile, before anything is placed. Each row is a 1-D bin
+  // of 1203 cm: seed it with the longest bar left, then keep adding the
+  // longest that still fits the remainder. The placer below is unchanged; it
+  // simply receives the pieces in row order, so each row is completed before
+  // the next is opened.
+  const secKey = p => `${Math.round(p.fh*10)}|${Math.round(p.fw*10)}`;
+  const sections = new Map();   // one row holds one cross-section
+  pieces.forEach(p => {
+    const k = secKey(p);
+    if (!sections.has(k)) sections.set(k, []);
+    sections.get(k).push(p);
+  });
+  const ordered = [];
+  [...sections.values()]
+    // Tallest section first so each horizontal layer stays level, then widest.
+    .sort((A,B) => (B[0].fh - A[0].fh) || (B[0].fw - A[0].fw))
+    .forEach(list => {
+      // Bucket by length. Same-SKU pieces stay adjacent inside a bucket, so a
+      // row still reads as whole bundles rather than a shuffle.
+      list.sort((a,b) => (a.sku < b.sku ? -1 : a.sku > b.sku ? 1 : 0));
+      const byLen = new Map();
+      list.forEach(p => {
+        const L = Math.round(p.fl*10)/10;
+        if (!byLen.has(L)) byLen.set(L, []);
+        byLen.get(L).push(p);
+      });
+      const lens = [...byLen.keys()].sort((a,b)=>b-a);   // longest first
+      let left = list.length;
+      while (left > 0) {
+        let remaining = USABLE_L, filled = false;
+        for (;;) {
+          let pick = -1;
+          for (const L of lens) {
+            if (byLen.get(L).length && L <= remaining + 0.001) { pick = L; break; }
+          }
+          if (pick < 0) break;                 // nothing else fits this row
+          ordered.push(byLen.get(pick).pop());
+          remaining -= pick; left--; filled = true;
+        }
+        // Nothing fits even an empty row: the rest are oversize. Hand them to
+        // the placer anyway so they are counted and reported, not dropped.
+        if (!filled) break;
+      }
+      byLen.forEach(arr => { while (arr.length) ordered.push(arr.pop()); });
+    });
 
   let unplaced = 0;
   const unplacedBySku = {};
   let maxStackH = 0;
 
-  pieces.forEach(pc => {
+  ordered.forEach(pc => {
     const got = packer.place(pc.fl, pc.fw, pc.fh);
     if (!got) {
       unplaced++; unplacedBySku[pc.sku] = (unplacedBySku[pc.sku]||0) + 1; return;
@@ -2050,7 +2096,7 @@ function getProducts() {
     return {
       ...p,
       l, w, h: h2,
-      alu: ALU_RE.test(sku),
+      alu: ALU_RE.test(sku.trim()),
       size_ft: ft,
       wt: p.wt != null ? p.wt : (master && master.wt) || 0,
       desc: p.desc || p.name_zh || p.name_en || p.sku,
@@ -2274,8 +2320,18 @@ function renderOrder() {
     seen[lbl] = PALETTE[i%PALETTE.length];
     const n = packedCount[lbl] || 0;
     const per = it.pcs_per_bundle||1;
-    legend.push({ lbl, color:seen[lbl],
-      note: n ? (per>1 ? `${n} 紮` : `${n} 支`) : '未裝入' });
+    // "未裝入" on its own left no way to tell a genuine overflow from a
+    // product the planner had wrongly excluded. Say which it is.
+    let note, bad = false;
+    if (n) { note = per>1 ? `${n} 紮` : `${n} 支`; }
+    else {
+      bad = true;
+      if ((plan.nonAluBySku||{})[lbl])      note = '未裝入：非鋁材';
+      else if ((plan.noDimsBySku||{})[lbl]) note = '未裝入：無尺寸';
+      else if ((plan.unplacedBySku||{})[lbl]) note = '未裝入：空間不足';
+      else note = '未裝入：數量為 0';
+    }
+    legend.push({ lbl, color:seen[lbl], note, bad });
   });
 
   // The top view picks one layer at a time. Looking down on a 16-deep stack
@@ -2412,7 +2468,7 @@ function renderOrder() {
           </div>
         </div>
         ${roomLine}
-        <div class="map-legend">${legend.map(l=>`<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div><span>${l.lbl}${l.note?` <b style="color:var(--text3);font-weight:500">${l.note}</b>`:''}</span></div>`).join('')}</div>
+        <div class="map-legend">${legend.map(l=>`<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div><span>${l.lbl}${l.note?` <b style="color:${l.bad?'#B3261E':'var(--text3)'};font-weight:${l.bad?'600':'500'}">${l.note}</b>`:''}</span></div>`).join('')}</div>
       </div>
 
       <div class="items-card">
