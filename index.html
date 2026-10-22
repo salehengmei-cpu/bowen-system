@@ -554,7 +554,7 @@ canvas.map-canvas {
   <div class="topnav-logo">
     <div class="logo-mark">B</div>
     <div>
-      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22d</span></div>
+      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22e</span></div>
       <div class="logo-sub">Bowen Patio Cover</div>
     </div>
   </div>
@@ -1050,9 +1050,9 @@ function buildMap(items) {
     if (qty <= 0) return;
     // This container is loaded with aluminium bar stock only. Glass, fittings,
     // screws and sealant travel separately, so they are reported, not packed.
-    const prod = (typeof getProducts === 'function')
-      ? getProducts().find(p => p.sku === it.sku) : null;
-    const isAlu = prod ? !!prod.alu : ALU_RE.test(it.sku || '');
+    // The SKU is the authority. A product record that predates the flag
+    // leaves it undefined, and undefined must not read as "not aluminium".
+    const isAlu = ALU_RE.test(it.sku || '');
     if (it.sku && !isAlu) {
       nonAlu += qty; nonAluBySku[it.sku] = (nonAluBySku[it.sku]||0) + qty;
       return;
@@ -2036,18 +2036,33 @@ function getProducts() {
     const w = p.w || (master && master.w) || 0;
     const h = p.h || (master && master.h) || 0;
     const hasDims = !!(l && w && h);
+    // A saved product list (產品設定) was serialised before these fields
+    // existed, so NEVER trust the stored record for them — work them out
+    // from the SKU every time. Reading a missing `alu` off a saved record
+    // marked every aluminium bar as "not aluminium" and emptied the
+    // container.
+    const sku = p.sku || '';
+    let ft = p.size_ft;
+    if (!(ft > 0)) { const m = /-(\d+(?:\.\d+)?)ft$/i.exec(sku); if (m) ft = parseFloat(m[1]); }
+    // Same reasoning for the PT07W height: 12.1 cm was copied in from the
+    // 4-in-1 row; a 3" post bundled in 2s is 15.2 × 7.6.
+    const h2 = (/^PT07W-/i.test(sku) && h > 8 && w > 0) ? 7.6 : h;
     return {
       ...p,
-      l, w, h,
+      l, w, h: h2,
+      alu: ALU_RE.test(sku),
+      size_ft: ft,
       wt: p.wt != null ? p.wt : (master && master.wt) || 0,
       desc: p.desc || p.name_zh || p.name_en || p.sku,
       name_zh: p.name_zh || p.desc || p.sku,
-      has_dims: p.has_dims != null ? p.has_dims : hasDims,
+      // Follow the actual numbers, not a stored flag: a record saved before
+      // its dimensions were derived still carries has_dims:false.
+      has_dims: hasDims,
     };
   });
 }
-function saveProducts(list) { customProducts = list; safeSet('bpc_custom_products', JSON.stringify(list)); }
-function resetProducts() { customProducts = null; safeSet('bpc_custom_products', ''); }
+function saveProducts(list) { customProducts = list; _probeCache = null; safeSet('bpc_custom_products', JSON.stringify(list)); }
+function resetProducts() { customProducts = null; _probeCache = null; safeSet('bpc_custom_products', ''); }
 
 // ── Settings page ──
 function renderSettings() {
