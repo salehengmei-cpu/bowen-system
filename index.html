@@ -224,6 +224,12 @@ canvas.map-canvas {
   border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: #131C2B;
 }
+.room-line {
+  font-size: 12px; line-height: 1.55; padding: 9px 14px;
+  border-top: 1px solid var(--border);
+}
+.room-open   { background: #F1F8F2; color: #2A5B33; }
+.room-closed { background: #FBF0EE; color: #8C2F22; }
 .map-legend {
   display: flex; flex-wrap: wrap; gap: 8px;
   padding: 8px 14px; border-top: 1px solid var(--border);
@@ -548,7 +554,7 @@ canvas.map-canvas {
   <div class="topnav-logo">
     <div class="logo-mark">B</div>
     <div>
-      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22c</span></div>
+      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22d</span></div>
       <div class="logo-sub">Bowen Patio Cover</div>
     </div>
   </div>
@@ -785,10 +791,16 @@ function calcTotals(o) {
   const usable = CONTAINER.vol * ((o.buffer||85)/100);
   return { vol, wt, units, volPct: usable>0?(vol/usable)*100:0, wtPct:(wt/CONTAINER.maxWt)*100, usable };
 }
-function getStatus(o) {
-  const {volPct,wtPct} = calcTotals(o);
+function getStatus(o, plan) {
+  const {volPct,wtPct,wt} = calcTotals(o);
   if (volPct>100||wtPct>100) return 'over';
-  if (volPct>=85) return 'full';
+  if (wtPct>=98) return 'full';            // at the weight limit, full is full
+  if (volPct>=85) {
+    // Volume alone was calling containers full while bars still went in.
+    // Check the real stack before saying so.
+    const p = plan || buildMap(o.items);
+    return roomLeft(p, Math.max(0, CONTAINER.maxWt - wt)).any ? 'loading' : 'full';
+  }
   if ((o.items||[]).length>0) return 'loading';
   return 'draft';
 }
@@ -983,7 +995,39 @@ function makePacker(){
     return { fl: d[0], fw: d[1], fh: d[2] };
   }
 
-  return { place, flat, get maxStackH(){ return maxStackH; } };
+  // A copy of the load exactly as it stands, so a "what else would fit?"
+  // question can be answered by trying pieces on the copy without disturbing
+  // the real one — and without re-packing the container from scratch.
+  function clone(){
+    const c = makePacker();
+    c.__restore(rows.map(r => ({...r})), layerZ, layerH, yUsed, maxStackH);
+    return c;
+  }
+  function __restore(savedRows, lz, lh, yu, msh){
+    rows.length = 0;
+    savedRows.forEach(r => rows.push(r));
+    layerZ = lz; layerH = lh; yUsed = yu; maxStackH = msh;
+  }
+
+  // Largest number of pieces of this product that still go in, tested on a
+  // copy. Returns pieces, not bundles. `cap` bounds the search so an empty
+  // container does not take all day.
+  function howManyMoreFit(prod, cap, weightLeft){
+    const per = prod.pcs_per_bundle || 1;
+    const t = clone();
+    const f = t.flat(prod.l, prod.w, prod.h);
+    let pieces = 0, wtLeft = (weightLeft === undefined ? Infinity : weightLeft);
+    while (pieces < cap){
+      if ((prod.wt||0) > wtLeft) break;
+      if (!t.place(f.fl, f.fw, f.fh)) break;
+      wtLeft -= (prod.wt||0);
+      pieces += per;
+    }
+    return Math.min(pieces, cap);
+  }
+
+  return { place, flat, clone, howManyMoreFit, __restore,
+           get maxStackH(){ return maxStackH; } };
 }
 
 function buildMap(items) {
@@ -1066,6 +1110,10 @@ function buildMap(items) {
   pl.noDimsBySku = noDimsBySku;
   pl.nonAlu = nonAlu;
   pl.nonAluBySku = nonAluBySku;
+  // The packer itself, still holding the finished load, so "what else would
+  // fit?" can be answered by trying pieces on a copy of the real stack
+  // instead of estimating from leftover cubic metres.
+  pl.packer = packer;
   return pl;
 }
 
@@ -1470,94 +1518,111 @@ function updateOrderField(id,field,v){const o=orders.find(o=>o.id===id);if(o){o[
 
 // ── Auto-fill remaining container space ──
 let autoFillOrderId = null;
+// ── Is there really room left? ───────────────────────────────────────────
+// Spare cubic metres are a poor guide for bar stock: a container can read
+// 60% empty and still take nothing, because the long bars already claim the
+// full run of the container and only short lengths fit what is left. So the
+// question is answered by trying pieces on a copy of the actual stack.
+// One candidate per profile — the shortest length of each, since that is
+// what squeezes into leftover gaps — keeps this quick enough to run on every
+// render.
+let _probeCache = null;
+// Every aluminium profile we have measurements for, grouped by profile and
+// sorted longest-first, so a probe can walk down the lengths of one profile.
+function probeProducts(){
+  if (_probeCache) return _probeCache;
+  const byBase = {};
+  getProducts().filter(p=>p.alu && p.has_dims).forEach(p=>{
+    (byBase[p.base_sku] = byBase[p.base_sku] || []).push(p);
+  });
+  Object.values(byBase).forEach(list => list.sort((a,b)=>(b.l||0)-(a.l||0)));
+  _probeCache = Object.values(byBase);
+  return _probeCache;
+}
+// Does anything still go in, and what is worth loading?
+// Two different answers matter: the LONGEST bar that still fits (how deep the
+// leftover gap really is) and the profile that takes the MOST pieces (what to
+// actually put on the order). A 1 ft offcut fits almost any gap and is no use
+// as advice, so anything under 2 ft is left out of the recommendation.
+function roomLeft(plan, remainWt){
+  const pk = plan && plan.packer;
+  if (!pk) return { any:false, best:null, longest:null, lines:0 };
+  const CAP = 60;
+  const fits = [];
+  probeProducts().forEach(list => {
+    for (const p of list){
+      if ((p.wt||0) > remainWt) continue;
+      if (pk.howManyMoreFit(p, 1, remainWt) < 1) continue;   // too long for the gap
+      fits.push(p);
+      break;                                                 // longest of this profile
+    }
+  });
+  if (!fits.length) return { any:false, best:null, longest:null, lines:0 };
+  let longest = null, best = null;
+  fits.forEach(p => {
+    if (!longest || (p.l||0) > (longest.l||0)) longest = p;
+    if ((p.l||0) < 61) return;                               // not worth suggesting
+    const n = pk.howManyMoreFit(p, CAP, remainWt);
+    if (n > 0 && (!best || n > best.n)) best = { sku:p.sku, n, cap:n>=CAP, len:p.l,
+                                                 desc:p.desc||p.name_zh||p.sku };
+  });
+  return { any:true, best, lines:fits.length,
+           longest: longest ? { sku:longest.sku, len:longest.l } : null };
+}
+
 function openAutoFill(id){
   autoFillOrderId = id;
   const o = orders.find(o=>o.id===id); if(!o) return;
   const { vol, wt, usable } = calcTotals(o);
-  const remainVol = Math.max(0, usable - vol);
   const remainWt = Math.max(0, CONTAINER.maxWt - wt);
-
-  // Usable interior after ceiling + door clearance (matches the packing engine)
   const usableL = CONTAINER.L - (CONTAINER.doorClear||0);
   const usableH = CONTAINER.H - (CONTAINER.ceilClear||0);
-  const contDims = [usableL, CONTAINER.W, usableH].sort((a,b)=>b-a);
 
-  // Build the base packing plan ONCE, then derive a floor-height map from it.
-  // We test candidates against this map cheaply (no full repack per product),
-  // so the whole thing stays fast on a phone.
-  const GRID = 10;
-  const GW = Math.ceil(usableL / GRID);
-  const GD = Math.ceil(CONTAINER.W / GRID);
-  const floor = [];
-  for (let i=0;i<GW;i++) floor[i] = new Float32Array(GD);
+  // Pack the order once; the packer it hands back still holds the real stack,
+  // so every count below is "this many more actually go in", tried piece by
+  // piece on a copy of it — not leftover cubic metres divided by unit volume.
+  // Spare volume is a poor guide for bar stock: a container can be 60% empty
+  // by volume and still take nothing but short lengths, because the long bars
+  // have already claimed the full run of the container.
   const basePlan = buildMap(o.items);
-  basePlan.forEach(b => {
-    const gx0 = Math.round(b.x/GRID), gy0 = Math.round(b.y/GRID);
-    const gl = Math.ceil(b.l/GRID), gw = Math.ceil(b.w/GRID);
-    for(let dx=0;dx<gl;dx++) for(let dy=0;dy<gw;dy++){
-      const xi=gx0+dx, yi=gy0+dy;
-      if(xi<GW && yi<GD){ const top=b.z+b.h; if(top>floor[xi][yi]) floor[xi][yi]=top; }
-    }
-  });
+  const pk = basePlan.packer;
 
-  // Deepest unused span along the length (for display only)
+  // How high the load actually reached, and the longest clear run left at the
+  // door end once every bar in place has been laid down.
+  const stackH = Math.round(basePlan.maxStackH||0);
   let usedLen = 0;
   basePlan.forEach(b => { if (b.x + b.l > usedLen) usedLen = b.x + b.l; });
   const remainLen = Math.max(0, usableL - usedLen);
 
-  // Fast check: can one piece of footprint (fl×fw, height h) rest anywhere with
-  // its top under the usable ceiling? Scans the pre-built floor map only.
-  function fitsSomewhere(fl, fw, h){
-    const gL = Math.ceil(fl/GRID), gW = Math.ceil(fw/GRID);
-    if(gL>GW || gW>GD) return false;
-    for(let gx=0; gx<=GW-gL; gx++){
-      if(gx*GRID + fl > usableL + 0.05) break;
-      for(let gy=0; gy<=GD-gW; gy++){
-        if(gy*GRID + fw > CONTAINER.W + 0.05) break;
-        let maxFloor=0;
-        for(let dx=0;dx<gL && maxFloor<=usableH;dx++){
-          for(let dy=0;dy<gW;dy++){ const f=floor[gx+dx][gy+dy]; if(f>maxFloor)maxFloor=f; }
-        }
-        if(maxFloor + h <= usableH) return true;
-      }
-    }
-    return false;
-  }
-
-  const candidates = getProducts().filter(p=>p.has_dims);
-  const catRank = {'PATIO COVER PROFILES':0,'GLASS':1,'GUTTERS & DRAINAGE':2,'HARDWARE & FASTENERS':3,'SEALANTS & ADHESIVES':4};
+  const CAP = 200;                        // per product, keeps the dialog quick
+  const catRank = {'PATIO COVER PROFILES':0,'GUTTERS & DRAINAGE':1,'HARDWARE & FASTENERS':2};
+  // Aluminium only — this container carries nothing else.
+  const candidates = getProducts().filter(p=>p.alu && p.has_dims);
   const withFit = candidates.map(p=>{
-    const itemDims = [p.l||0, p.w||0, p.h||0].sort((a,b)=>b-a);
-    const dimensionallyFits = itemDims[0] <= contDims[0] && itemDims[1] <= contDims[1] && itemDims[2] <= contDims[2];
-
-    const unitVol = (p.l/100)*(p.w/100)*(p.h/100);
-    const byVol = unitVol>0 ? Math.floor(remainVol/unitVol) : 0;
-    const byWt  = p.wt>0 ? Math.floor(remainWt/p.wt) : 9999;
-    let canFit = Math.max(0, Math.min(byVol, byWt));
-
-    if(!dimensionallyFits) canFit = 0;
-
-    // Physical check against the pre-built floor map, trying both orientations.
-    if(canFit>0){
-      const placeable = fitsSomewhere(p.l, p.w, p.h) || fitsSomewhere(p.w, p.l, p.h);
-      if(!placeable) canFit = 0;
-    }
-    return {...p, unitVol, canFit};
+    const canFit = pk ? pk.howManyMoreFit(p, CAP, remainWt) : 0;
+    return {...p, canFit, capped: canFit >= CAP};
   }).filter(p=>p.canFit>0)
-    .sort((a,b)=>(catRank[a.category]??9)-(catRank[b.category]??9) || b.canFit-a.canFit);
+    // Most pieces first, and on a tie the longer bar — a 1 ft offcut fits
+    // almost any gap, which makes it the least useful thing to suggest.
+    .sort((a,b)=> b.canFit - a.canFit || (b.l||0)-(a.l||0) ||
+                  (catRank[a.category]??9)-(catRank[b.category]??9));
 
+  const totalLines = withFit.length;
   document.getElementById('af-sub').innerHTML =
-    `剩餘空間：<b>${remainVol.toFixed(1)} m³</b> · 剩餘長度：<b>${Math.round(remainLen)} cm</b> · 剩餘載重：<b>${Math.round(remainWt).toLocaleString()} kg</b><br>以下產品可實際裝入剩餘空間，建議數量可自行調整後加入。`;
+    `堆高：<b>${stackH} / ${usableH} cm</b> · 門口剩餘長度：<b>${Math.round(remainLen)} cm</b> · 剩餘載重：<b>${Math.round(remainWt).toLocaleString()} kg</b>`
+    + (totalLines
+        ? `<br><b style="color:#2E7D32">還可再裝 ${totalLines} 種鋁材</b>（以下數量為逐支試裝的結果，不是體積估算）。長料佔滿整條櫃長後，剩下的空位只有短料進得去。`
+        : `<br><b style="color:#B3261E">已裝滿</b>：以現有堆疊，沒有任何鋁材還放得進去。`);
 
   if(!withFit.length){
-    document.getElementById('af-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">貨櫃已滿或沒有可裝入的產品。</div>';
+    document.getElementById('af-list').innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">貨櫃已滿 — 沒有可再裝入的鋁材。</div>';
   } else {
     document.getElementById('af-list').innerHTML = withFit.map(p=>`
       <div class="af-item">
         <div class="afi-info">
           <div class="afi-sku">${p.sku}</div>
           <div class="afi-name">${p.desc||p.name_zh||''}</div>
-          <div class="afi-meta">${p.l}×${p.w}×${p.h}cm · ${p.wt}kg · 最多可裝 <b>${p.canFit}</b> 件</div>
+          <div class="afi-meta">${p.l}×${p.w}×${p.h}cm · ${p.wt}kg · 實際還可裝 <b>${p.canFit}${p.capped?'+':''}</b> 件</div>
         </div>
         <input class="afi-qty" type="number" inputmode="numeric" min="0" max="${p.canFit}" value="${Math.min(p.canFit, 10)}" id="afqty_${p.sku.replace(/[^a-zA-Z0-9]/g,'_')}">
         <button class="afi-add" onclick="addAutoFillItem('${p.sku.replace(/'/g,"\\'")}')">加入</button>
@@ -2202,6 +2267,25 @@ function renderOrder() {
   // shows only whatever happens to be on top, which tells you nothing about
   // the load — so the default is the deck layer and these step up through it.
   // The side and cross-section views always show the whole load.
+  // Plain answer to "is it actually full?", from the real stack rather than
+  // from spare cubic metres.
+  const _tot = calcTotals(o);
+  const room = roomLeft(plan, Math.max(0, CONTAINER.maxWt - _tot.wt));
+  const usableHcm = CONTAINER.H - (CONTAINER.ceilClear||0);
+  let usedLen = 0; plan.forEach(b => { if (b.x + b.l > usedLen) usedLen = b.x + b.l; });
+  const freeLen = Math.max(0, (CONTAINER.L - (CONTAINER.doorClear||0)) - usedLen);
+  const roomLine = !plan.length ? ''
+    : room.any
+      ? `<div class="room-line room-open">✅ <b>還有空位</b> — 堆高 ${Math.round(plan.maxStackH)} / ${usableHcm} cm，門口剩餘 ${Math.round(freeLen)} cm。`
+        + (room.best
+            ? ` 最值得加的是 <b>${room.best.sku}</b>，還可放 ${room.best.n}${room.best.cap?'+':''} 支`
+              + (room.longest && room.longest.sku !== room.best.sku
+                  ? `；最長還進得去的是 ${room.longest.sku}（${Math.round(room.longest.len)} cm）。`
+                  : '。')
+            : ' 只剩放得下短料的零碎空位。')
+        + ` 側視圖右邊的空白是真的空位 — 長料已佔滿整條櫃長，只有短料進得去。</div>`
+      : `<div class="room-line room-closed">🛑 <b>真的滿了</b> — 堆高 ${Math.round(plan.maxStackH)} / ${usableHcm} cm。每一種鋁材都逐支試過，沒有一支還放得進去。側視圖剩下的空白是零碎到裝不下東西的空間。</div>`;
+
   const nLayers = (plan.layerZs||[]).length;
   if (mapLayer !== 'all' && Number(mapLayer) >= nLayers) mapLayer = 0;
   let layerBtns = '';
@@ -2312,6 +2396,7 @@ function renderOrder() {
             <canvas class="map-canvas" id="mx${o.id}"></canvas>
           </div>
         </div>
+        ${roomLine}
         <div class="map-legend">${legend.map(l=>`<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div><span>${l.lbl}${l.note?` <b style="color:var(--text3);font-weight:500">${l.note}</b>`:''}</span></div>`).join('')}</div>
       </div>
 
