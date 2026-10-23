@@ -554,7 +554,7 @@ canvas.map-canvas {
   <div class="topnav-logo">
     <div class="logo-mark">B</div>
     <div>
-      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22g</span></div>
+      <div class="logo-text">Bowen 業務系統 <span style="font-size:10px;opacity:.55;font-weight:400">v2026-10-22h</span></div>
       <div class="logo-sub">Bowen Patio Cover</div>
     </div>
   </div>
@@ -1069,7 +1069,8 @@ function buildMap(items) {
     const per = it.pcs_per_bundle || 1;
     const bundles = per>1 ? Math.ceil(qty/per) : qty;
     for (let q = 0; q < bundles && pieces.length < 40000; q++) {
-      pieces.push({ l, w, h, origIdx, sku: it.sku||'?' });
+      pieces.push({ l, w, h, origIdx, sku: it.sku||'?',
+                    desc: it.desc || '' });   // Chinese name, for the drawings
     }
   });
 
@@ -1140,7 +1141,7 @@ function buildMap(items) {
     }
     pl.push({ x: got.x, y: got.y, z: got.z, l: got.l, w: got.w, h: got.h,
               color: PALETTE[pc.origIdx % PALETTE.length], label: pc.sku,
-              sku: pc.sku });
+              sku: pc.sku, desc: pc.desc || '' });
   });
   maxStackH = packer.maxStackH;
 
@@ -1308,12 +1309,41 @@ function drawCanvasTo(canvas, pl, view, win, layerSel) {
     else if (view==='side')  { bx = p.x*sx; by = dh-(p.z+p.h)*sy; bw = p.l*sx; bh = p.h*sy; }
     else                     { bx = p.y*sx; by = dh-(p.z+p.h)*sy; bw = p.w*sx; bh = p.h*sy; }
     if (bw < 30 || bh < 7) return;
-    const fs = Math.max(7, Math.min(10, bh*0.7, bw*0.14));
-    ctx.font = `bold ${fs}px sans-serif`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    const lbl = p.label.length > 12 ? p.label.slice(0,11)+'…' : p.label;
-    ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillText(lbl, bx+bw/2+0.6, by+bh/2+0.6);
-    ctx.fillStyle='#fff';             ctx.fillText(lbl, bx+bw/2,     by+bh/2);
+    const cx = bx + bw/2, cy = by + bh/2;
+
+    // SKU, and the Chinese name underneath when the block is tall enough to
+    // carry a second line. On a thin bar the code alone has to do.
+    const fs = Math.max(7, Math.min(10, bh*0.7, bw*0.14));
+    const zh = (p.desc || '').trim();
+    const twoLines = zh && bh >= fs*2.4 && bw > 70;
+    const fit = (txt, px) => {
+      ctx.font = `${px}px sans-serif`;
+      if (ctx.measureText(txt).width <= bw - 6) return txt;
+      let t = txt;
+      while (t.length > 1 && ctx.measureText(t + '…').width > bw - 6) t = t.slice(0, -1);
+      return t + '…';
+    };
+    const draw = (txt, px, weight, y, alpha) => {
+      ctx.font = `${weight} ${px}px sans-serif`;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(txt, cx+0.6, y+0.6);
+      ctx.fillStyle = alpha ? `rgba(255,255,255,${alpha})` : '#fff';
+      ctx.fillText(txt, cx, y);
+    };
+
+    if (twoLines) {
+      const fz = Math.max(7, fs*0.88);
+      draw(fit(p.label, fs), fs, 'bold', cy - fs*0.6);
+      draw(fit(zh, fz),      fz, '400',  cy + fz*0.75, 0.88);
+    } else if (zh) {
+      // A bar is long and thin, so there is no room for a second line but
+      // plenty along its length: run the code and the Chinese name together.
+      const one = p.label + ' · ' + zh;
+      ctx.font = `bold ${fs}px sans-serif`;
+      draw(ctx.measureText(one).width <= bw - 6 ? one : fit(p.label, fs), fs, 'bold', cy);
+    } else {
+      draw(fit(p.label, fs), fs, 'bold', cy);
+    }
   });
 
   // Axis captions
@@ -1349,10 +1379,11 @@ function openFS(oid) {
     drawCanvas('fs-top', pl, 'top', mapLayer);
     drawCanvas('fs-side', pl, 'side', null);
     drawCanvas('fs-cross', pl, 'cross', null);
-    const uniq={}, cnt={};
-    pl.forEach(p=>{ if(!uniq[p.label]) uniq[p.label]=p.color; cnt[p.label]=(cnt[p.label]||0)+1; });
+    const uniq={}, cnt={}, zh={};
+    pl.forEach(p=>{ if(!uniq[p.label]) uniq[p.label]=p.color; cnt[p.label]=(cnt[p.label]||0)+1;
+                    if(!zh[p.label]) zh[p.label]=(p.desc||'').trim(); });
     document.getElementById('fs-legend').innerHTML = Object.entries(uniq).map(([l,c])=>
-      `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div><span>${l} <b style="font-weight:500;opacity:.7">×${cnt[l]}</b></span></div>`
+      `<div class="legend-item"><div class="legend-dot" style="background:${c}"></div><span>${l}${zh[l]?` <span style="opacity:.75">${zh[l]}</span>`:''} <b style="font-weight:500;opacity:.7">×${cnt[l]}</b></span></div>`
     ).join('');
   }, 60);
 }
@@ -1744,6 +1775,10 @@ function printOrder(id){
       .map-box{border:1px solid #E3DDD3;border-radius:8px;padding:8px}
       .map-box .ml{font-size:11px;color:#777;margin-bottom:4px;text-align:center}
       canvas{width:100%;display:block;background:#131C2B;border-radius:4px}
+      .pmlegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 2px;font-size:10px;color:#333}
+      .pmli{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+      .pmli i{width:9px;height:9px;border-radius:2px;display:inline-block;flex:0 0 auto;
+              -webkit-print-color-adjust:exact;print-color-adjust:exact}
       .foot{margin-top:20px;font-size:11px;color:#999;text-align:center;border-top:1px solid #E3DDD3;padding-top:10px}
       .sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px;font-size:12px}
       .sign div{border-top:1px solid #999;padding-top:5px;color:#777}
@@ -1776,6 +1811,7 @@ function printOrder(id){
       <div class="map-box"><div class="ml">側視圖 Side View (長 × 高)</div><canvas id="pms"></canvas></div>
       <div class="map-box" style="max-width:260px"><div class="ml">斷面圖 Cross-section (寬 × 高)</div><canvas id="pmx"></canvas></div>
     </div>
+    <div class="pmlegend" id="pmleg"></div>
     <div class="sign">
       <div>裝箱人簽名 Packed by</div>
       <div>核對人簽名 Checked by</div>
@@ -1795,6 +1831,16 @@ function printOrder(id){
       drawCanvasTo(win.document.getElementById('pmt'), plan, 'top', win, 0);
       drawCanvasTo(win.document.getElementById('pms'), plan, 'side', win, null);
       drawCanvasTo(win.document.getElementById('pmx'), plan, 'cross', win, null);
+      // Colour key with the Chinese name, so whoever loads the container can
+      // match a colour on the drawing to a product without the SKU sheet.
+      const seenC = {}, cntC = {}, zhC = {};
+      plan.forEach(b => { if(!seenC[b.label]) seenC[b.label] = b.color;
+                          cntC[b.label] = (cntC[b.label]||0)+1;
+                          if(!zhC[b.label]) zhC[b.label] = (b.desc||'').trim(); });
+      const legEl = win.document.getElementById('pmleg');
+      if (legEl) legEl.innerHTML = Object.keys(seenC).map(k =>
+        `<span class="pmli"><i style="background:${seenC[k]}"></i><b>${k}</b>${zhC[k]?' '+zhC[k]:''} ×${cntC[k]}</span>`
+      ).join('');
     } catch(e){}
   }, 300);
 }
@@ -2073,6 +2119,14 @@ try { const _cp = safeGet('bpc_custom_products'); customProducts = _cp ? JSON.pa
 // Guard: an empty or invalid custom list should fall back to the master PRODUCTS
 if (!Array.isArray(customProducts) || customProducts.length === 0) customProducts = null;
 
+// A product name has to say what the thing is. "4吋 4合1黑色 (24ft)" does;
+// "黑色 (24ft)" only gives the colour and the length.
+function namesTheProduct(name){
+  const n = (name||'').trim();
+  if (!n) return '';
+  if (/^(黑色|白色|透明|銀色)\s*[\(（]/.test(n)) return '';
+  return n.length >= 5 ? n : '';
+}
 function getProducts() {
   const raw = (Array.isArray(customProducts) && customProducts.length > 0) ? customProducts : PRODUCTS;
   return raw.map(p => {
@@ -2099,7 +2153,11 @@ function getProducts() {
       alu: ALU_RE.test(sku.trim()),
       size_ft: ft,
       wt: p.wt != null ? p.wt : (master && master.wt) || 0,
-      desc: p.desc || p.name_zh || p.name_en || p.sku,
+      // A Chinese name that states only colour and length — PT08's "黑色 (24ft)"
+      // — never says what the product is. Where that is all the master holds,
+      // fall back to the English name, which does ("T Bar Black (24ft)").
+      // Nothing is invented: it just uses the better of the two strings there.
+      desc: namesTheProduct(p.desc || p.name_zh) || p.name_en || p.desc || p.name_zh || p.sku,
       name_zh: p.name_zh || p.desc || p.sku,
       // Follow the actual numbers, not a stored flag: a record saved before
       // its dimensions were derived still carries has_dims:false.
@@ -2331,7 +2389,8 @@ function renderOrder() {
       else if ((plan.unplacedBySku||{})[lbl]) note = '未裝入：空間不足';
       else note = '未裝入：數量為 0';
     }
-    legend.push({ lbl, color:seen[lbl], note, bad });
+    legend.push({ lbl, color:seen[lbl], note, bad,
+                  zh: (it.desc||'').trim() });
   });
 
   // The top view picks one layer at a time. Looking down on a 16-deep stack
@@ -2468,7 +2527,7 @@ function renderOrder() {
           </div>
         </div>
         ${roomLine}
-        <div class="map-legend">${legend.map(l=>`<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div><span>${l.lbl}${l.note?` <b style="color:${l.bad?'#B3261E':'var(--text3)'};font-weight:${l.bad?'600':'500'}">${l.note}</b>`:''}</span></div>`).join('')}</div>
+        <div class="map-legend">${legend.map(l=>`<div class="legend-item"><div class="legend-dot" style="background:${l.color}"></div><span>${l.lbl}${l.zh?` <span style="color:var(--text2)">${l.zh}</span>`:''}${l.note?` <b style="color:${l.bad?'#B3261E':'var(--text3)'};font-weight:${l.bad?'600':'500'}">${l.note}</b>`:''}</span></div>`).join('')}</div>
       </div>
 
       <div class="items-card">
